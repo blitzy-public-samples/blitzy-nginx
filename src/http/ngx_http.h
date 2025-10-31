@@ -13,15 +13,16 @@
 #include <ngx_core.h>
 
 
-typedef struct ngx_http_request_s     ngx_http_request_t;
-typedef struct ngx_http_upstream_s    ngx_http_upstream_t;
-typedef struct ngx_http_cache_s       ngx_http_cache_t;
-typedef struct ngx_http_file_cache_s  ngx_http_file_cache_t;
-typedef struct ngx_http_log_ctx_s     ngx_http_log_ctx_t;
-typedef struct ngx_http_chunked_s     ngx_http_chunked_t;
-typedef struct ngx_http_v2_stream_s   ngx_http_v2_stream_t;
-typedef struct ngx_http_v3_parse_s    ngx_http_v3_parse_t;
-typedef struct ngx_http_v3_session_s  ngx_http_v3_session_t;
+typedef struct ngx_http_request_s       ngx_http_request_t;
+typedef struct ngx_http_upstream_s      ngx_http_upstream_t;
+typedef struct ngx_http_cache_s         ngx_http_cache_t;
+typedef struct ngx_http_file_cache_s    ngx_http_file_cache_t;
+typedef struct ngx_http_log_ctx_s       ngx_http_log_ctx_t;
+typedef struct ngx_http_chunked_s       ngx_http_chunked_t;
+typedef struct ngx_http_v2_stream_s     ngx_http_v2_stream_t;
+typedef struct ngx_http_v3_parse_s      ngx_http_v3_parse_t;
+typedef struct ngx_http_v3_session_s    ngx_http_v3_session_t;
+typedef struct ngx_http_status_def_s    ngx_http_status_def_t;
 
 typedef ngx_int_t (*ngx_http_header_handler_pt)(ngx_http_request_t *r,
     ngx_table_elt_t *h, ngx_uint_t offset);
@@ -159,6 +160,87 @@ ngx_int_t ngx_http_filter_finalize_request(ngx_http_request_t *r,
 void ngx_http_clean_header(ngx_http_request_t *r);
 
 
+/*
+ * HTTP Status Code Registry API
+ *
+ * Centralized status code management with RFC 9110 compliance validation.
+ * These functions provide a unified interface for setting and validating
+ * HTTP status codes across all NGINX modules.
+ */
+
+#if (!NGX_HTTP_STATUS_VALIDATION)
+
+/*
+ * Standard mode: Zero-overhead inline macro for maximum performance.
+ * Direct status assignment without validation overhead, maintaining
+ * backward compatibility with existing NGINX behavior.
+ */
+#define ngx_http_status_set(r, code) \
+    ((r)->headers_out.status = (code), NGX_OK)
+
+#else
+
+/*
+ * Strict validation mode: Full RFC 9110 compliance checking.
+ * Validates status code range (100-599) and semantic correctness.
+ *
+ * Parameters:
+ *   r      - HTTP request context
+ *   status - HTTP status code to set (100-599)
+ *
+ * Returns:
+ *   NGX_OK    - Status code validated and set successfully
+ *   NGX_ERROR - Invalid status code, falls back to 500
+ */
+ngx_int_t ngx_http_status_set(ngx_http_request_t *r, ngx_uint_t status);
+
+#endif
+
+/*
+ * Validates HTTP status code against RFC 9110 requirements.
+ *
+ * Performs range validation (100-599) and checks for reserved codes.
+ * In strict mode, warns about non-standard NGINX-specific codes (444, 494-499).
+ *
+ * Parameters:
+ *   status - HTTP status code to validate
+ *
+ * Returns:
+ *   NGX_OK    - Valid status code
+ *   NGX_ERROR - Invalid status code (out of range or reserved)
+ */
+ngx_int_t ngx_http_status_validate(ngx_uint_t status);
+
+/*
+ * Retrieves RFC 9110 standard reason phrase for a status code.
+ *
+ * Performs O(1) registry lookup via direct array indexing.
+ * Returns standard reason phrases for all RFC 9110 Section 15 codes.
+ *
+ * Parameters:
+ *   status - HTTP status code (100-599)
+ *
+ * Returns:
+ *   Pointer to reason phrase string, or NULL for unknown codes
+ */
+const ngx_str_t *ngx_http_status_reason(ngx_uint_t status);
+
+/*
+ * Registers a custom status code definition in the registry.
+ *
+ * Extension point for adding non-standard status codes while maintaining
+ * consistent validation and reason phrase lookup semantics.
+ *
+ * Parameters:
+ *   def - Status code definition containing code, reason, flags, and RFC reference
+ *
+ * Returns:
+ *   NGX_OK    - Status code registered successfully
+ *   NGX_ERROR - Registration failed (duplicate code or invalid definition)
+ */
+ngx_int_t ngx_http_status_register(ngx_http_status_def_t *def);
+
+
 ngx_int_t ngx_http_discard_request_body(ngx_http_request_t *r);
 void ngx_http_discarded_request_body_handler(ngx_http_request_t *r);
 void ngx_http_block_reading(ngx_http_request_t *r);
@@ -183,22 +265,6 @@ ngx_int_t ngx_http_huff_decode(u_char *state, u_char *src, size_t len,
 size_t ngx_http_huff_encode(u_char *src, size_t len, u_char *dst,
     ngx_uint_t lower);
 #endif
-
-
-/*
- * HTTP Status Code API
- * Centralized status code registry and validation functions per RFC 9110
- */
-
-/* Forward declaration for status definition structure */
-typedef struct ngx_http_status_def_s  ngx_http_status_def_t;
-
-/* HTTP status code API functions */
-ngx_int_t ngx_http_status_set(ngx_http_request_t *r, ngx_uint_t status);
-ngx_int_t ngx_http_status_validate(ngx_uint_t status);
-const ngx_str_t *ngx_http_status_reason(ngx_uint_t status);
-ngx_int_t ngx_http_status_is_cacheable(ngx_uint_t status);
-ngx_int_t ngx_http_status_register(ngx_http_status_def_t *def);
 
 
 extern ngx_module_t  ngx_http_module;
