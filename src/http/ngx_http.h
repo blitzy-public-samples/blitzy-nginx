@@ -185,6 +185,22 @@ size_t ngx_http_huff_encode(u_char *src, size_t len, u_char *dst,
 #endif
 
 
+/*
+ * HTTP Status Code API
+ * Centralized status code registry and validation functions per RFC 9110
+ */
+
+/* Forward declaration for status definition structure */
+typedef struct ngx_http_status_def_s  ngx_http_status_def_t;
+
+/* HTTP status code API functions */
+ngx_int_t ngx_http_status_set(ngx_http_request_t *r, ngx_uint_t status);
+ngx_int_t ngx_http_status_validate(ngx_uint_t status);
+const ngx_str_t *ngx_http_status_reason(ngx_uint_t status);
+ngx_int_t ngx_http_status_is_cacheable(ngx_uint_t status);
+ngx_int_t ngx_http_status_register(ngx_http_status_def_t *def);
+
+
 extern ngx_module_t  ngx_http_module;
 
 extern ngx_str_t  ngx_http_html_default_types[];

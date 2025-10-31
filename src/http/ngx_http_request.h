@@ -145,6 +145,27 @@
 #define NGX_HTTP_INSUFFICIENT_STORAGE      507
 
 
+/*
+ * HTTP Status Code Flags
+ * Used by centralized status code registry for RFC 9110/9111 compliance
+ */
+#define NGX_HTTP_STATUS_CACHEABLE          0x0001
+#define NGX_HTTP_STATUS_INFORMATIONAL      0x0002
+#define NGX_HTTP_STATUS_CLIENT_ERROR       0x0004
+#define NGX_HTTP_STATUS_SERVER_ERROR       0x0008
+
+/*
+ * HTTP Status Code Definition Structure
+ * Used by centralized status code registry
+ */
+struct ngx_http_status_def_s {
+    ngx_uint_t    code;          /* HTTP status code (100-599) */
+    ngx_str_t     reason;        /* Reason phrase per RFC 9110 */
+    ngx_uint_t    flags;         /* Status characteristics */
+    const char   *rfc_section;   /* RFC reference */
+};
+
+
 #define NGX_HTTP_LOWLEVEL_BUFFERED         0xf0
 #define NGX_HTTP_WRITE_BUFFERED            0x10
 #define NGX_HTTP_GZIP_BUFFERED             0x20

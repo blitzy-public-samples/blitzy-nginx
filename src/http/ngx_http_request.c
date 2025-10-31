@@ -200,22 +200,8 @@ ngx_http_header_t  ngx_http_headers_in[] = {
 /*
  * HTTP Status Code Registry
  * RFC 9110 compliant status code definitions with metadata
- */
-
-typedef struct {
-    ngx_uint_t    code;          /* HTTP status code (100-599) */
-    ngx_str_t     reason;        /* Reason phrase per RFC 9110 */
-    ngx_uint_t    flags;         /* Status characteristics */
-    const char   *rfc_section;   /* RFC reference */
-} ngx_http_status_def_t;
-
-/* Status code flags */
-#define NGX_HTTP_STATUS_CACHEABLE          0x0001
-#define NGX_HTTP_STATUS_INFORMATIONAL      0x0002
-#define NGX_HTTP_STATUS_CLIENT_ERROR       0x0004
-#define NGX_HTTP_STATUS_SERVER_ERROR       0x0008
-
-/*
+ * Structure definition and flags are in ngx_http_request.h
+ *
  * Static immutable registry of HTTP status codes
  * Initialized at compile time for zero runtime overhead
  * Index = (status_code - 100) for O(1) lookup
@@ -430,11 +416,11 @@ ngx_http_status_set(ngx_http_request_t *r, ngx_uint_t status)
     /* Comprehensive debug logging */
     reason = ngx_http_status_reason(status);
     if (reason != NULL) {
-        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "http status set: %ui \"%V\" (valid: yes)",
                        status, reason);
     } else {
-        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "http status set: %ui (valid: yes, no reason phrase)",
                        status);
     }
