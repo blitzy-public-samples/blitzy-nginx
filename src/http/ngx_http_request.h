@@ -158,12 +158,12 @@
  * HTTP status code registry entry structure for centralized status management
  * Provides RFC 9110 HTTP Semantics compliance with metadata for each status code
  */
-typedef struct {
+struct ngx_http_status_def_s {
     ngx_uint_t    code;          /* HTTP status code (100-599) */
     ngx_str_t     reason;        /* RFC 9110 reason phrase */
     ngx_uint_t    flags;         /* Status characteristics (cacheable, error class) */
     const char   *rfc_section;   /* RFC 9110 section reference */
-} ngx_http_status_def_t;
+};
 
 
 #define NGX_HTTP_LOWLEVEL_BUFFERED         0xf0
