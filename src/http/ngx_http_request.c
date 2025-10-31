@@ -373,6 +373,8 @@ ngx_http_status_is_cacheable(ngx_uint_t status)
 }
 
 
+#if (NGX_HTTP_STATUS_VALIDATION)
+
 /*
  * ngx_http_status_set
  * Unified API for setting HTTP status code with validation
@@ -427,6 +429,8 @@ ngx_http_status_set(ngx_http_request_t *r, ngx_uint_t status)
 
     return NGX_OK;
 }
+
+#endif
 
 
 /*
