@@ -677,7 +677,7 @@ ngx_http_mp4_handler(ngx_http_request_t *r)
 
     if (ngx_http_status_set(r, NGX_HTTP_OK) != NGX_OK) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                      "failed to set status 200 in mp4 module");
+                      "failed to set MP4 streaming status");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
     r->headers_out.last_modified_time = of.mtime;
