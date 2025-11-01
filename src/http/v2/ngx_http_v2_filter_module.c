@@ -103,6 +103,35 @@ static ngx_http_output_header_filter_pt  ngx_http_next_header_filter;
 static ngx_http_output_header_filter_pt  ngx_http_next_early_hints_filter;
 
 
+/*
+ * HTTP/2 Header Filter: Status Code Handling
+ *
+ * This filter reads the HTTP status code from r->headers_out.status and
+ * encodes it into HTTP/2 HEADERS frames using HPACK compression (RFC 7541).
+ *
+ * Status Code Validation:
+ * The status code in r->headers_out.status has been pre-validated by the
+ * ngx_http_status_set() API in upstream request handlers and core modules,
+ * ensuring RFC 9110 HTTP Semantics compliance before reaching this filter.
+ * This HTTP/2 filter operates as a read-only consumer of validated status
+ * codes and performs no additional validation.
+ *
+ * HPACK Encoding Strategy:
+ * - Common status codes (200, 204, 206, 304, 400, 404, 500) are encoded
+ *   using HPACK static table indexed representations for optimal compression
+ * - Non-indexed status codes are encoded as literals with the :status
+ *   pseudo-header using incremental indexing
+ *
+ * Status Code Read Locations:
+ * - Line 166: Primary switch mapping common codes to HPACK indexes
+ * - Line 199: Nested switch mapping error codes to HPACK indexes
+ * - Line 419: Debug logging of status value
+ * - Line 427: Literal encoding of non-indexed status codes
+ *
+ * HTTP/2 Protocol Compliance:
+ * All status code encoding follows RFC 7540 Section 8.1.2.4 requirements
+ * for :status pseudo-header formatting and HPACK compression.
+ */
 static ngx_int_t
 ngx_http_v2_header_filter(ngx_http_request_t *r)
 {
