@@ -1646,6 +1646,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
             }
 
             if (rc == NGX_ERROR) {
+                if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 502 Bad Gateway for gRPC protocol error");
+                }
                 return NGX_HTTP_UPSTREAM_INVALID_HEADER;
             }
 
@@ -1667,6 +1671,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                 ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                               "upstream sent unexpected http2 frame: %d",
                               ctx->type);
+                if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 502 Bad Gateway for gRPC protocol error");
+                }
                 return NGX_HTTP_UPSTREAM_INVALID_HEADER;
             }
 
@@ -1674,6 +1682,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                 ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                               "upstream sent frame for unknown stream %ui",
                               ctx->stream_id);
+                if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 502 Bad Gateway for gRPC protocol error");
+                }
                 return NGX_HTTP_UPSTREAM_INVALID_HEADER;
             }
         }
@@ -1689,6 +1701,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
             }
 
             if (rc == NGX_ERROR) {
+                if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 502 Bad Gateway for gRPC protocol error");
+                }
                 return NGX_HTTP_UPSTREAM_INVALID_HEADER;
             }
 
@@ -1696,6 +1712,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                           "upstream rejected request with error %ui",
                           ctx->error);
 
+            if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 502 Bad Gateway for gRPC protocol error");
+            }
             return NGX_HTTP_UPSTREAM_INVALID_HEADER;
         }
 
@@ -1708,6 +1728,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
             }
 
             if (rc == NGX_ERROR) {
+                if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 502 Bad Gateway for gRPC protocol error");
+                }
                 return NGX_HTTP_UPSTREAM_INVALID_HEADER;
             }
 
@@ -1728,6 +1752,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                               "upstream sent goaway with error %ui",
                               ctx->error);
 
+                if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 502 Bad Gateway for gRPC protocol error");
+                }
                 return NGX_HTTP_UPSTREAM_INVALID_HEADER;
             }
 
@@ -1745,6 +1773,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
             }
 
             if (rc == NGX_ERROR) {
+                if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 502 Bad Gateway for gRPC protocol error");
+                }
                 return NGX_HTTP_UPSTREAM_INVALID_HEADER;
             }
 
@@ -1764,6 +1796,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
             }
 
             if (rc == NGX_ERROR) {
+                if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 502 Bad Gateway for gRPC protocol error");
+                }
                 return NGX_HTTP_UPSTREAM_INVALID_HEADER;
             }
 
@@ -1783,6 +1819,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
             }
 
             if (rc == NGX_ERROR) {
+                if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 502 Bad Gateway for gRPC protocol error");
+                }
                 return NGX_HTTP_UPSTREAM_INVALID_HEADER;
             }
 
@@ -1793,6 +1833,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
         if (ctx->type == NGX_HTTP_V2_PUSH_PROMISE_FRAME) {
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                           "upstream sent unexpected push promise frame");
+            if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 502 Bad Gateway for gRPC protocol error");
+            }
             return NGX_HTTP_UPSTREAM_INVALID_HEADER;
         }
 
@@ -1842,12 +1886,24 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                                       "upstream sent invalid header \"%V: %V\"",
                                       &ctx->name, &ctx->value);
+
+                        if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                          "failed to set 502 Bad Gateway for gRPC protocol error");
+                        }
+
                         return NGX_HTTP_UPSTREAM_INVALID_HEADER;
                     }
 
                     if (ctx->status) {
                         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                                       "upstream sent duplicate :status header");
+
+                        if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                          "failed to set 502 Bad Gateway for gRPC protocol error");
+                        }
+
                         return NGX_HTTP_UPSTREAM_INVALID_HEADER;
                     }
 
@@ -1857,6 +1913,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                                       "upstream sent invalid :status \"%V\"",
                                       status_line);
+                        if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                          "failed to set 502 Bad Gateway for gRPC protocol error");
+                        }
                         return NGX_HTTP_UPSTREAM_INVALID_HEADER;
                     }
 
@@ -1866,6 +1926,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                                       "upstream sent invalid :status \"%V\"",
                                       status_line);
+                        if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                          "failed to set 502 Bad Gateway for gRPC protocol error");
+                        }
                         return NGX_HTTP_UPSTREAM_INVALID_HEADER;
                     }
 
@@ -1874,6 +1938,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                                       "upstream sent unexpected :status \"%V\"",
                                       status_line);
+                        if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                          "failed to set 502 Bad Gateway for gRPC protocol error");
+                        }
                         return NGX_HTTP_UPSTREAM_INVALID_HEADER;
                     }
 
@@ -1890,6 +1958,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                 } else if (!ctx->status) {
                     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                                   "upstream sent no :status header");
+                    if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                      "failed to set 502 Bad Gateway for gRPC protocol error");
+                    }
                     return NGX_HTTP_UPSTREAM_INVALID_HEADER;
                 }
 
@@ -1932,6 +2004,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
                     if (ctx->end_stream) {
                         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                                       "upstream prematurely closed stream");
+                        if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                          "failed to set 502 Bad Gateway for gRPC protocol error");
+                        }
                         return NGX_HTTP_UPSTREAM_INVALID_HEADER;
                     }
 
@@ -1961,6 +2037,10 @@ ngx_http_grpc_process_header(ngx_http_request_t *r)
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                           "upstream sent invalid header");
 
+            if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 502 Bad Gateway for gRPC protocol error");
+            }
             return NGX_HTTP_UPSTREAM_INVALID_HEADER;
         }
 
