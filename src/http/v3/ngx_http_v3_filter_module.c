@@ -81,6 +81,38 @@ static ngx_http_output_header_filter_pt  ngx_http_next_early_hints_filter;
 static ngx_http_output_body_filter_pt    ngx_http_next_body_filter;
 
 
+/*
+ * HTTP/3 Header Filter - Status Code Integration
+ *
+ * This filter operates as a READ-ONLY consumer of HTTP status codes from the
+ * centralized status code registry system. The r->headers_out.status field
+ * contains pre-validated status codes that have been set via the
+ * ngx_http_status_set() API by upstream request handlers (ngx_http_upstream.c),
+ * content handlers (ngx_http_static_module.c, ngx_http_core_module.c), and
+ * other response-generating modules.
+ *
+ * Status Code Validation: All status codes read by this filter have already
+ * undergone RFC 9110 compliance validation before reaching this point in the
+ * output filter chain, ensuring that only valid HTTP status codes (100-599)
+ * with proper semantic metadata are encoded into HTTP/3 QPACK format.
+ *
+ * HTTP/3 Protocol Integration: This filter reads the validated status code at
+ * multiple points (lines 123-125, 132, 141, 152, 331, 334, 342) to:
+ *   - Apply HTTP/3-specific header processing rules (last-modified, content-length)
+ *   - Optimize QPACK encoding (indexed encoding for 200 OK via NGX_HTTP_V3_HEADER_STATUS_200)
+ *   - Generate HTTP/3 HEADERS frames with proper :status pseudo-header encoding
+ *
+ * No API Calls Required: This filter does not call ngx_http_status_set() or
+ * other status code API functions, as it only reads the validated status after
+ * it has been set elsewhere. This maintains the separation of concerns between
+ * status code validation (handled by content/upstream modules) and protocol
+ * encoding (handled by this filter).
+ *
+ * Backward Compatibility: All existing HTTP/3 protocol mechanics are preserved,
+ * including QPACK compression (RFC 9204), QUIC stream multiplexing, field
+ * section prefix encoding, and integration with static/dynamic QPACK tables.
+ */
+
 static ngx_int_t
 ngx_http_v3_header_filter(ngx_http_request_t *r)
 {
