@@ -250,6 +250,12 @@ ngx_http_limit_conn_handler(ngx_http_request_t *r)
 
                 r->main->limit_conn_status = NGX_HTTP_LIMIT_CONN_REJECTED;
 
+                if (ngx_http_status_set(r, lccf->status_code) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set %ui status for connection limit",
+                                  lccf->status_code);
+                }
+
                 return lccf->status_code;
             }
 
@@ -285,12 +291,10 @@ ngx_http_limit_conn_handler(ngx_http_request_t *r)
 
                 r->main->limit_conn_status = NGX_HTTP_LIMIT_CONN_REJECTED;
 
-                /* Set status via API for RFC 9110 validation */
                 if (ngx_http_status_set(r, lccf->status_code) != NGX_OK) {
                     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                                  "failed to set connection limit status: %ui",
+                                  "failed to set %ui status for connection limit",
                                   lccf->status_code);
-                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
                 }
 
                 return lccf->status_code;
