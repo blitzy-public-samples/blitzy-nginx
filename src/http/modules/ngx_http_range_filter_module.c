@@ -231,7 +231,11 @@ parse:
     case NGX_OK:
         ngx_http_set_ctx(r, ctx, ngx_http_range_body_filter_module);
 
-        r->headers_out.status = NGX_HTTP_PARTIAL_CONTENT;
+        if (ngx_http_status_set(r, NGX_HTTP_PARTIAL_CONTENT) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set status 206 in range filter");
+            return NGX_ERROR;
+        }
         r->headers_out.status_line.len = 0;
 
         if (ctx->ranges.nelts == 1) {
@@ -600,7 +604,11 @@ ngx_http_range_not_satisfiable(ngx_http_request_t *r)
 {
     ngx_table_elt_t  *content_range;
 
-    r->headers_out.status = NGX_HTTP_RANGE_NOT_SATISFIABLE;
+    if (ngx_http_status_set(r, NGX_HTTP_RANGE_NOT_SATISFIABLE) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "failed to set status 416 in range filter");
+        return NGX_ERROR;
+    }
 
     content_range = ngx_list_push(&r->headers_out.headers);
     if (content_range == NULL) {
