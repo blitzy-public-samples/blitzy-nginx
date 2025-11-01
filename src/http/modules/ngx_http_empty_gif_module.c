@@ -112,26 +112,62 @@ static ngx_str_t  ngx_http_gif_type = ngx_string("image/gif");
 static ngx_int_t
 ngx_http_empty_gif_handler(ngx_http_request_t *r)
 {
-    ngx_http_complex_value_t  cv;
+    ngx_int_t     rc;
+    ngx_buf_t    *b;
+    ngx_chain_t   out;
 
     if (!(r->method & (NGX_HTTP_GET|NGX_HTTP_HEAD))) {
         return NGX_HTTP_NOT_ALLOWED;
     }
 
-    ngx_memzero(&cv, sizeof(ngx_http_complex_value_t));
+    rc = ngx_http_discard_request_body(r);
 
-    cv.value.len = sizeof(ngx_empty_gif);
-    cv.value.data = ngx_empty_gif;
-    r->headers_out.last_modified_time = 23349600;
+    if (rc != NGX_OK) {
+        return rc;
+    }
 
-    /* Set status via API for RFC 9110 validation */
+    /* Set status via centralized API with RFC 9110 validation */
     if (ngx_http_status_set(r, NGX_HTTP_OK) != NGX_OK) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                      "failed to set 200 OK status for empty GIF");
+                      "failed to set 200 OK status for empty GIF response");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
-    return ngx_http_send_response(r, NGX_HTTP_OK, &ngx_http_gif_type, &cv);
+    /* Set Content-Type header */
+    r->headers_out.content_type_len = sizeof("image/gif") - 1;
+    ngx_str_set(&r->headers_out.content_type, "image/gif");
+    r->headers_out.content_type_lowcase = NULL;
+
+    /* Set Content-Length header */
+    r->headers_out.content_length_n = sizeof(ngx_empty_gif);
+
+    /* Set Last-Modified header (epoch: January 9, 1970) */
+    r->headers_out.last_modified_time = 23349600;
+
+    /* Send headers */
+    rc = ngx_http_send_header(r);
+
+    if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
+        return rc;
+    }
+
+    /* Prepare response body buffer */
+    b = ngx_calloc_buf(r->pool);
+    if (b == NULL) {
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    b->pos = ngx_empty_gif;
+    b->last = ngx_empty_gif + sizeof(ngx_empty_gif);
+    b->memory = 1;
+    b->last_buf = (r == r->main) ? 1 : 0;
+    b->last_in_chain = 1;
+
+    out.buf = b;
+    out.next = NULL;
+
+    /* Output response body via ngx_http_output_filter */
+    return ngx_http_output_filter(r, &out);
 }
 
 
