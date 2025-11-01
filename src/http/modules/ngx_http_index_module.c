@@ -228,6 +228,11 @@ ngx_http_index_handler(ngx_http_request_t *r)
             if (of.err == NGX_EMLINK
                 || of.err == NGX_ELOOP)
             {
+                if (ngx_http_status_set(r, NGX_HTTP_FORBIDDEN) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 403 status for index file symlink error");
+                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
                 return NGX_HTTP_FORBIDDEN;
             }
 #endif
@@ -322,6 +327,11 @@ ngx_http_index_test_dir(ngx_http_request_t *r, ngx_http_core_loc_conf_t *clcf,
             if (of.err == NGX_EMLINK
                 || of.err == NGX_ELOOP)
             {
+                if (ngx_http_status_set(r, NGX_HTTP_FORBIDDEN) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set 403 status for symlink error");
+                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
                 return NGX_HTTP_FORBIDDEN;
             }
 #endif
@@ -372,12 +382,24 @@ ngx_http_index_error(ngx_http_request_t *r, ngx_http_core_loc_conf_t  *clcf,
         ngx_log_error(NGX_LOG_ERR, r->connection->log, err,
                       "\"%s\" is forbidden", file);
 
+        if (ngx_http_status_set(r, NGX_HTTP_FORBIDDEN) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 403 status for access denied");
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
         return NGX_HTTP_FORBIDDEN;
     }
 
     if (clcf->log_not_found) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, err,
                       "\"%s\" is not found", file);
+    }
+
+    if (ngx_http_status_set(r, NGX_HTTP_NOT_FOUND) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "failed to set 404 status for missing index file");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     return NGX_HTTP_NOT_FOUND;
