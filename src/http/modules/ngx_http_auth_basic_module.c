@@ -351,6 +351,7 @@ ngx_http_auth_basic_set_realm(ngx_http_request_t *r, ngx_str_t *realm)
     if (rc != NGX_OK) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                       "failed to set 401 Unauthorized status for auth failure");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     return NGX_HTTP_UNAUTHORIZED;
