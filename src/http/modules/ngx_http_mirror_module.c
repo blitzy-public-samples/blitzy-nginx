@@ -151,6 +151,7 @@ ngx_http_mirror_handler_internal(ngx_http_request_t *r)
 {
     ngx_str_t                   *name;
     ngx_uint_t                   i;
+    ngx_int_t                    rc;
     ngx_http_request_t          *sr;
     ngx_http_mirror_loc_conf_t  *mlcf;
 
@@ -163,17 +164,33 @@ ngx_http_mirror_handler_internal(ngx_http_request_t *r)
                                 NGX_HTTP_SUBREQUEST_BACKGROUND)
             != NGX_OK)
         {
-            /* Set status via API for RFC 9110 validation */
-            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
-                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                              "failed to set 500 status for mirror subrequest error");
-            }
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
         sr->header_only = 1;
         sr->method = r->method;
         sr->method_name = r->method_name;
+
+        /*
+         * Mirror subrequests inherit validated status from parent request.
+         * If parent request already has a status set (from earlier phases),
+         * propagate it to the mirror subrequest using the centralized API.
+         * This ensures RFC 9110 compliance and consistent status handling
+         * across mirrored traffic. Background subrequests make independent
+         * requests, but inheriting parent status provides consistency.
+         */
+        if (r->headers_out.status > 0) {
+            rc = ngx_http_status_set(sr, r->headers_out.status);
+            if (rc != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set mirror subrequest status: %ui",
+                              r->headers_out.status);
+                /*
+                 * Continue processing other mirrors despite status set failure.
+                 * Mirror failures should not affect parent request processing.
+                 */
+            }
+        }
     }
 
     return NGX_DECLINED;
