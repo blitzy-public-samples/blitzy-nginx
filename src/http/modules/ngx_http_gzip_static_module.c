@@ -225,8 +225,8 @@ ngx_http_gzip_static_handler(ngx_http_request_t *r)
     log->action = "sending response to client";
 
     if (ngx_http_status_set(r, NGX_HTTP_OK) != NGX_OK) {
-        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                      "failed to set status 200 in gzip static module");
+        ngx_log_error(NGX_LOG_ERR, log, 0,
+                      "failed to set gzip_static status");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
     r->headers_out.content_length_n = of.size;
