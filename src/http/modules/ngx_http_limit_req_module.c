@@ -226,6 +226,11 @@ ngx_http_limit_req_handler(ngx_http_request_t *r)
 
         if (ngx_http_complex_value(r, &ctx->key, &key) != NGX_OK) {
             ngx_http_limit_req_unlock(limits, n);
+            /* Set status via API for RFC 9110 validation */
+            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 500 status for limit_req key error");
+            }
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -282,6 +287,14 @@ ngx_http_limit_req_handler(ngx_http_request_t *r)
 
         r->main->limit_req_status = NGX_HTTP_LIMIT_REQ_REJECTED;
 
+        /* Set status via API for RFC 9110 validation */
+        if (ngx_http_status_set(r, lrcf->status_code) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set rate limit status: %ui",
+                          lrcf->status_code);
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
         return lrcf->status_code;
     }
 
@@ -315,6 +328,11 @@ ngx_http_limit_req_handler(ngx_http_request_t *r)
 
     } else {
         if (ngx_handle_read_event(r->connection->read, 0) != NGX_OK) {
+            /* Set status via API for RFC 9110 validation */
+            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 500 status for limit_req event error");
+            }
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
     }
