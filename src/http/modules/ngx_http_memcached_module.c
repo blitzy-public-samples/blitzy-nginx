@@ -442,6 +442,14 @@ found:
             return NGX_HTTP_UPSTREAM_INVALID_HEADER;
         }
 
+        /* Set status via API for RFC 9110 compliance and validation */
+        if (ngx_http_status_set(r, NGX_HTTP_OK) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set memcached status: %ui",
+                          (ngx_uint_t) NGX_HTTP_OK);
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
         u->headers_in.status_n = 200;
         u->state->status = 200;
         u->buffer.pos = p + sizeof(CRLF) - 1;
@@ -452,6 +460,14 @@ found:
     if (ngx_strcmp(p, "END\x0d") == 0) {
         ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                       "key: \"%V\" was not found by memcached", &ctx->key);
+
+        /* Set status via API for RFC 9110 compliance and validation */
+        if (ngx_http_status_set(r, NGX_HTTP_NOT_FOUND) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set memcached status: %ui",
+                          (ngx_uint_t) NGX_HTTP_NOT_FOUND);
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
 
         u->headers_in.content_length_n = 0;
         u->headers_in.status_n = 404;
