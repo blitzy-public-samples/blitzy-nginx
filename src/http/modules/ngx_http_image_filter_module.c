@@ -267,6 +267,11 @@ ngx_http_image_header_filter(ngx_http_request_t *r)
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                       "image filter: too big response: %O", len);
 
+        if (ngx_http_status_set(r, NGX_HTTP_UNSUPPORTED_MEDIA_TYPE) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "image filter: failed to set status 415");
+        }
+
         return NGX_HTTP_UNSUPPORTED_MEDIA_TYPE;
     }
 
@@ -330,6 +335,11 @@ ngx_http_image_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
                 }
             }
 
+            if (ngx_http_status_set(r, NGX_HTTP_UNSUPPORTED_MEDIA_TYPE) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "image filter: failed to set status 415 for unsupported media type");
+            }
+
             return ngx_http_filter_finalize_request(r,
                                               &ngx_http_image_filter_module,
                                               NGX_HTTP_UNSUPPORTED_MEDIA_TYPE);
@@ -361,6 +371,11 @@ ngx_http_image_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         }
 
         if (rc == NGX_ERROR) {
+            if (ngx_http_status_set(r, NGX_HTTP_UNSUPPORTED_MEDIA_TYPE) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "image filter: failed to set status 415 for read error");
+            }
+
             return ngx_http_filter_finalize_request(r,
                                               &ngx_http_image_filter_module,
                                               NGX_HTTP_UNSUPPORTED_MEDIA_TYPE);
@@ -373,6 +388,11 @@ ngx_http_image_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         out.buf = ngx_http_image_process(r);
 
         if (out.buf == NULL) {
+            if (ngx_http_status_set(r, NGX_HTTP_UNSUPPORTED_MEDIA_TYPE) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "image filter: failed to set status 415 for processing error");
+            }
+
             return ngx_http_filter_finalize_request(r,
                                               &ngx_http_image_filter_module,
                                               NGX_HTTP_UNSUPPORTED_MEDIA_TYPE);
@@ -593,9 +613,10 @@ ngx_http_image_json(ngx_http_request_t *r, ngx_http_image_filter_ctx_t *ctx)
 
     if (ngx_http_status_set(r, NGX_HTTP_OK) != NGX_OK) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                      "failed to set status 200 in image filter module");
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                      "image filter: failed to set status 200 for JSON response");
+        return NULL;
     }
+
     r->headers_out.content_type_len = sizeof("application/json") - 1;
     ngx_str_set(&r->headers_out.content_type, "application/json");
     r->headers_out.content_type_lowcase = NULL;
