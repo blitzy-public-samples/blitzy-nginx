@@ -93,8 +93,8 @@ ngx_http_not_modified_header_filter(ngx_http_request_t *r)
 
         if (ngx_http_status_set(r, NGX_HTTP_NOT_MODIFIED) != NGX_OK) {
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                          "failed to set status 304 in not modified filter");
-            return NGX_ERROR;
+                          "failed to set 304 Not Modified status");
+            /* Continue with filter chain even on validation failure */
         }
         r->headers_out.status_line.len = 0;
         r->headers_out.content_type.len = 0;
