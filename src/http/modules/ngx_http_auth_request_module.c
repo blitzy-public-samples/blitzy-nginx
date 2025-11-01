@@ -135,6 +135,12 @@ ngx_http_auth_request_handler(ngx_http_request_t *r)
         /* return appropriate status */
 
         if (ctx->status == NGX_HTTP_FORBIDDEN) {
+            /* Set status via API for RFC 9110 validation */
+            if (ngx_http_status_set(r, ctx->status) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set auth request forbidden status");
+                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
             return ctx->status;
         }
 
@@ -164,6 +170,13 @@ ngx_http_auth_request_handler(ngx_http_request_t *r)
                 h = h->next;
             }
 
+            /* Set status via API for RFC 9110 validation */
+            if (ngx_http_status_set(r, ctx->status) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set auth request unauthorized status");
+                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
+
             return ctx->status;
         }
 
@@ -175,6 +188,13 @@ ngx_http_auth_request_handler(ngx_http_request_t *r)
 
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                       "auth request unexpected status: %ui", ctx->status);
+
+        /* Set status via API for RFC 9110 validation */
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for auth request error");
+            /* Already returning 500, so just return it */
+        }
 
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
