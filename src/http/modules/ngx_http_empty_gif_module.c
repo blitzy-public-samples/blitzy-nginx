@@ -106,9 +106,6 @@ ngx_module_t  ngx_http_empty_gif_module = {
 };
 
 
-static ngx_str_t  ngx_http_gif_type = ngx_string("image/gif");
-
-
 static ngx_int_t
 ngx_http_empty_gif_handler(ngx_http_request_t *r)
 {
