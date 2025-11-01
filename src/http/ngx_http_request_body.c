@@ -50,14 +50,14 @@ ngx_http_read_client_request_body(ngx_http_request_t *r,
 
     if (ngx_http_test_expect(r) != NGX_OK) {
         rc = NGX_HTTP_INTERNAL_SERVER_ERROR;
-        ngx_http_status_set(r, rc);
+        (void) ngx_http_status_set(r, rc);
         goto done;
     }
 
     rb = ngx_pcalloc(r->pool, sizeof(ngx_http_request_body_t));
     if (rb == NULL) {
         rc = NGX_HTTP_INTERNAL_SERVER_ERROR;
-        ngx_http_status_set(r, rc);
+        (void) ngx_http_status_set(r, rc);
         goto done;
     }
 
@@ -130,7 +130,7 @@ ngx_http_read_client_request_body(ngx_http_request_t *r,
             b = ngx_calloc_buf(r->pool);
             if (b == NULL) {
                 rc = NGX_HTTP_INTERNAL_SERVER_ERROR;
-                ngx_http_status_set(r, rc);
+                (void) ngx_http_status_set(r, rc);
                 goto done;
             }
 
@@ -170,7 +170,7 @@ ngx_http_read_client_request_body(ngx_http_request_t *r,
         ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
                       "negative request body rest");
         rc = NGX_HTTP_INTERNAL_SERVER_ERROR;
-        ngx_http_status_set(r, rc);
+        (void) ngx_http_status_set(r, rc);
         goto done;
     }
 
@@ -199,7 +199,7 @@ ngx_http_read_client_request_body(ngx_http_request_t *r,
     rb->buf = ngx_create_temp_buf(r->pool, size);
     if (rb->buf == NULL) {
         rc = NGX_HTTP_INTERNAL_SERVER_ERROR;
-        ngx_http_status_set(r, rc);
+        (void) ngx_http_status_set(r, rc);
         goto done;
     }
 
@@ -339,7 +339,7 @@ ngx_http_do_read_client_request_body(ngx_http_request_t *r)
                         }
 
                         if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
-                            ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                            (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                             return NGX_HTTP_INTERNAL_SERVER_ERROR;
                         }
 
@@ -352,7 +352,7 @@ ngx_http_do_read_client_request_body(ngx_http_request_t *r)
                         ngx_add_timer(c->read, clcf->client_body_timeout);
 
                         if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
-                            ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                            (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                             return NGX_HTTP_INTERNAL_SERVER_ERROR;
                         }
 
@@ -362,7 +362,7 @@ ngx_http_do_read_client_request_body(ngx_http_request_t *r)
                     ngx_log_error(NGX_LOG_ALERT, c->log, 0,
                                   "busy buffers after request body flush");
 
-                    ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                    (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                     return NGX_HTTP_INTERNAL_SERVER_ERROR;
                 }
 
@@ -398,7 +398,7 @@ ngx_http_do_read_client_request_body(ngx_http_request_t *r)
 
             if (n == 0 || n == NGX_ERROR) {
                 c->error = 1;
-                ngx_http_status_set(r, NGX_HTTP_BAD_REQUEST);
+                (void) ngx_http_status_set(r, NGX_HTTP_BAD_REQUEST);
                 return NGX_HTTP_BAD_REQUEST;
             }
 
@@ -447,7 +447,7 @@ ngx_http_do_read_client_request_body(ngx_http_request_t *r)
             ngx_add_timer(c->read, clcf->client_body_timeout);
 
             if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
-                ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                 return NGX_HTTP_INTERNAL_SERVER_ERROR;
             }
 
@@ -456,7 +456,7 @@ ngx_http_do_read_client_request_body(ngx_http_request_t *r)
     }
 
     if (ngx_http_copy_pipelined_header(r, rb->buf) != NGX_OK) {
-        ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -662,7 +662,7 @@ ngx_http_discard_request_body(ngx_http_request_t *r)
 #endif
 
     if (ngx_http_test_expect(r) != NGX_OK) {
-        ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -708,7 +708,7 @@ ngx_http_discard_request_body(ngx_http_request_t *r)
     r->read_event_handler = ngx_http_discarded_request_body_handler;
 
     if (ngx_handle_read_event(rev, 0) != NGX_OK) {
-        ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -845,7 +845,7 @@ ngx_http_read_discarded_request_body(ngx_http_request_t *r)
     }
 
     if (ngx_http_copy_pipelined_header(r, &b) != NGX_OK) {
-        ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -871,13 +871,13 @@ ngx_http_discard_request_body_filter(ngx_http_request_t *r, ngx_buf_t *b)
 
             rb = ngx_pcalloc(r->pool, sizeof(ngx_http_request_body_t));
             if (rb == NULL) {
-                ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                 return NGX_HTTP_INTERNAL_SERVER_ERROR;
             }
 
             rb->chunked = ngx_pcalloc(r->pool, sizeof(ngx_http_chunked_t));
             if (rb->chunked == NULL) {
-                ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                 return NGX_HTTP_INTERNAL_SERVER_ERROR;
             }
 
@@ -930,7 +930,7 @@ ngx_http_discard_request_body_filter(ngx_http_request_t *r, ngx_buf_t *b)
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                           "client sent invalid chunked body");
 
-            ngx_http_status_set(r, NGX_HTTP_BAD_REQUEST);
+            (void) ngx_http_status_set(r, NGX_HTTP_BAD_REQUEST);
             return NGX_HTTP_BAD_REQUEST;
         }
 
@@ -1038,7 +1038,7 @@ ngx_http_request_body_length_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
             tl = ngx_chain_get_free_buf(r->pool, &rb->free);
             if (tl == NULL) {
-                ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                 return NGX_HTTP_INTERNAL_SERVER_ERROR;
             }
 
@@ -1061,7 +1061,7 @@ ngx_http_request_body_length_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
         tl = ngx_chain_get_free_buf(r->pool, &rb->free);
         if (tl == NULL) {
-            ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+            (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -1126,7 +1126,7 @@ ngx_http_request_body_chunked_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
         rb->chunked = ngx_pcalloc(r->pool, sizeof(ngx_http_chunked_t));
         if (rb->chunked == NULL) {
-            ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+            (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -1171,7 +1171,7 @@ ngx_http_request_body_chunked_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
                     r->lingering_close = 1;
 
-                    ngx_http_status_set(r, NGX_HTTP_REQUEST_ENTITY_TOO_LARGE);
+                    (void) ngx_http_status_set(r, NGX_HTTP_REQUEST_ENTITY_TOO_LARGE);
                     return NGX_HTTP_REQUEST_ENTITY_TOO_LARGE;
                 }
 
@@ -1200,7 +1200,7 @@ ngx_http_request_body_chunked_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
                 tl = ngx_chain_get_free_buf(r->pool, &rb->free);
                 if (tl == NULL) {
-                    ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                    (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                     return NGX_HTTP_INTERNAL_SERVER_ERROR;
                 }
 
@@ -1245,7 +1245,7 @@ ngx_http_request_body_chunked_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
                 tl = ngx_chain_get_free_buf(r->pool, &rb->free);
                 if (tl == NULL) {
-                    ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                    (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                     return NGX_HTTP_INTERNAL_SERVER_ERROR;
                 }
 
@@ -1278,7 +1278,7 @@ ngx_http_request_body_chunked_filter(ngx_http_request_t *r, ngx_chain_t *in)
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                           "client sent invalid chunked body");
 
-            ngx_http_status_set(r, NGX_HTTP_BAD_REQUEST);
+            (void) ngx_http_status_set(r, NGX_HTTP_BAD_REQUEST);
             return NGX_HTTP_BAD_REQUEST;
         }
     }
@@ -1336,7 +1336,7 @@ ngx_http_request_body_save_filter(ngx_http_request_t *r, ngx_chain_t *in)
                 ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
                               "duplicate last buf in save filter");
                 *ll = NULL;
-                ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                 return NGX_HTTP_INTERNAL_SERVER_ERROR;
             }
 
@@ -1346,7 +1346,7 @@ ngx_http_request_body_save_filter(ngx_http_request_t *r, ngx_chain_t *in)
         tl = ngx_alloc_chain_link(r->pool);
         if (tl == NULL) {
             *ll = NULL;
-            ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+            (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -1366,7 +1366,7 @@ ngx_http_request_body_save_filter(ngx_http_request_t *r, ngx_chain_t *in)
         if (rb->bufs && rb->buf && rb->buf->last == rb->buf->end
             && ngx_http_write_request_body(r) != NGX_OK)
         {
-            ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+            (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -1382,12 +1382,12 @@ ngx_http_request_body_save_filter(ngx_http_request_t *r, ngx_chain_t *in)
         if (rb->bufs && rb->bufs->buf->in_file) {
             ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
                           "body already in file");
-            ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+            (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
         if (ngx_http_write_request_body(r) != NGX_OK) {
-            ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+            (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -1395,7 +1395,7 @@ ngx_http_request_body_save_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
             cl = ngx_chain_get_free_buf(r->pool, &rb->free);
             if (cl == NULL) {
-                ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                (void) ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
                 return NGX_HTTP_INTERNAL_SERVER_ERROR;
             }
 
