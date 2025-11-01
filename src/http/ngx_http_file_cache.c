@@ -57,27 +57,6 @@
  * - Validation overhead < 2% in strict mode (compile-time optional)
  */
 
-/*
- * Forward declaration for status registry cacheability query function.
- * This function queries the centralized HTTP status code registry to determine
- * if a given status code is cacheable per RFC 9111 caching specifications.
- *
- * Function Signature:
- *   ngx_int_t ngx_http_status_is_cacheable(ngx_uint_t status)
- *
- * Parameters:
- *   status - HTTP status code to check (100-599)
- *
- * Returns:
- *   1 if status has NGX_HTTP_STATUS_CACHEABLE flag in registry
- *   0 if status is not cacheable or not found in registry
- *
- * Implementation Location:
- *   src/http/ngx_http_request.c (part of status registry API)
- */
-ngx_int_t ngx_http_status_is_cacheable(ngx_uint_t status);
-
-
 static ngx_int_t ngx_http_file_cache_lock(ngx_http_request_t *r,
     ngx_http_cache_t *c);
 static void ngx_http_file_cache_lock_wait_handler(ngx_event_t *ev);

@@ -212,6 +212,25 @@ ngx_int_t ngx_http_status_set(ngx_http_request_t *r, ngx_uint_t status);
 ngx_int_t ngx_http_status_validate(ngx_uint_t status);
 
 /*
+ * Checks if status code is cacheable per RFC 9111.
+ *
+ * Queries the centralized HTTP status code registry to determine if a given
+ * status code has the NGX_HTTP_STATUS_CACHEABLE flag set according to
+ * RFC 9111 caching specifications.
+ *
+ * Cacheable status codes include: 200, 203, 204, 206, 300, 301, 308, 404,
+ * 405, 410, 414, 501 as defined by RFC 9111.
+ *
+ * Parameters:
+ *   status - HTTP status code to check (100-599)
+ *
+ * Returns:
+ *   1 if status has NGX_HTTP_STATUS_CACHEABLE flag in registry
+ *   0 if status is not cacheable or not found in registry
+ */
+ngx_int_t ngx_http_status_is_cacheable(ngx_uint_t status);
+
+/*
  * Retrieves RFC 9110 standard reason phrase for a status code.
  *
  * Performs O(1) registry lookup via direct array indexing.
