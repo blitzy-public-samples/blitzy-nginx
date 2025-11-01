@@ -256,6 +256,15 @@ ngx_http_realip_set_addr(ngx_http_request_t *r, ngx_addr_t *addr)
     ngx_pool_cleanup_t     *cln;
     ngx_http_realip_ctx_t  *ctx;
 
+    /*
+     * Status Code Refactoring: This module participates in the centralized
+     * HTTP status code management system. Error paths set status via the
+     * ngx_http_status_set() API for RFC 9110 compliance validation before
+     * returning error codes. The returned status code informs the core
+     * framework of the error condition. This module does not query status
+     * values (read-only access not needed), only sets them in error cases.
+     */
+
     cln = ngx_pool_cleanup_add(r->pool, sizeof(ngx_http_realip_ctx_t));
     if (cln == NULL) {
         /* Set status via API for RFC 9110 validation */
