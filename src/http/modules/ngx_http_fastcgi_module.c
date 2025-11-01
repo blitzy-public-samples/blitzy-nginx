@@ -688,12 +688,27 @@ ngx_http_fastcgi_handler(ngx_http_request_t *r)
     ngx_http_fastcgi_main_conf_t  *fmcf;
 #endif
 
+    /*
+     * Status code handling in FastCGI module:
+     * - NGINX-generated errors (setup/init failures): use ngx_http_status_set()
+     * - Backend FastCGI responses: pass-through via ngx_http_upstream.c (r->upstream)
+     * - Protocol errors: handled by upstream infrastructure (502/504)
+     */
+
     if (ngx_http_upstream_create(r) != NGX_OK) {
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for upstream creation failure");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     f = ngx_pcalloc(r->pool, sizeof(ngx_http_fastcgi_ctx_t));
     if (f == NULL) {
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for context allocation failure");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -703,6 +718,10 @@ ngx_http_fastcgi_handler(ngx_http_request_t *r)
 
     if (flcf->fastcgi_lengths) {
         if (ngx_http_fastcgi_eval(r, flcf) != NGX_OK) {
+            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 500 status for FastCGI eval failure");
+            }
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
     }
@@ -732,6 +751,10 @@ ngx_http_fastcgi_handler(ngx_http_request_t *r)
 
     u->pipe = ngx_pcalloc(r->pool, sizeof(ngx_event_pipe_t));
     if (u->pipe == NULL) {
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for pipe allocation failure");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
