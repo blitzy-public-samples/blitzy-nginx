@@ -202,6 +202,11 @@ ngx_http_limit_conn_handler(ngx_http_request_t *r)
         ctx = limits[i].shm_zone->data;
 
         if (ngx_http_complex_value(r, &ctx->key, &key) != NGX_OK) {
+            /* Set status via API for RFC 9110 validation */
+            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 500 status for limit_conn key error");
+            }
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -280,6 +285,14 @@ ngx_http_limit_conn_handler(ngx_http_request_t *r)
 
                 r->main->limit_conn_status = NGX_HTTP_LIMIT_CONN_REJECTED;
 
+                /* Set status via API for RFC 9110 validation */
+                if (ngx_http_status_set(r, lccf->status_code) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set connection limit status: %ui",
+                                  lccf->status_code);
+                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
+
                 return lccf->status_code;
             }
 
@@ -294,6 +307,11 @@ ngx_http_limit_conn_handler(ngx_http_request_t *r)
         cln = ngx_pool_cleanup_add(r->pool,
                                    sizeof(ngx_http_limit_conn_cleanup_t));
         if (cln == NULL) {
+            /* Set status via API for RFC 9110 validation */
+            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 500 status for limit_conn memory error");
+            }
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
