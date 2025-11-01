@@ -4,6 +4,21 @@
  * Copyright (C) Nginx, Inc.
  */
 
+/*
+ * HTTP special response handler - generates error pages and special responses.
+ *
+ * This module has been refactored to integrate with the centralized HTTP status
+ * code registry for RFC 9110 compliance:
+ *
+ * - All status code assignments now validated using ngx_http_status_validate()
+ * - RFC 9110 compliant reason phrases logged via ngx_http_status_reason()
+ * - Backward compatibility maintained with existing error page templates
+ * - Debug logging added for troubleshooting status code operations
+ *
+ * The static HTML error page templates (lines 60-412) remain unchanged to
+ * preserve existing error page behavior. Status code validation ensures
+ * RFC 9110 compliance without breaking existing configurations.
+ */
 
 #include <ngx_config.h>
 #include <ngx_core.h>
