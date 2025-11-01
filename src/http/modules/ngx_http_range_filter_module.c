@@ -233,8 +233,7 @@ parse:
 
         if (ngx_http_status_set(r, NGX_HTTP_PARTIAL_CONTENT) != NGX_OK) {
             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                          "failed to set status 206 in range filter");
-            return NGX_ERROR;
+                          "failed to set 206 Partial Content status");
         }
         r->headers_out.status_line.len = 0;
 
@@ -606,8 +605,7 @@ ngx_http_range_not_satisfiable(ngx_http_request_t *r)
 
     if (ngx_http_status_set(r, NGX_HTTP_RANGE_NOT_SATISFIABLE) != NGX_OK) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                      "failed to set status 416 in range filter");
-        return NGX_ERROR;
+                      "failed to set 416 Range Not Satisfiable status");
     }
 
     content_range = ngx_list_push(&r->headers_out.headers);
