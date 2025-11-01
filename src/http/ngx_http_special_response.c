@@ -418,10 +418,26 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
     ngx_uint_t                 i, err;
     ngx_http_err_page_t       *err_page;
     ngx_http_core_loc_conf_t  *clcf;
+    const ngx_str_t           *reason;
 
     ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                    "http special response: %i, \"%V?%V\"",
                    error, &r->uri, &r->args);
+
+    /* Validate status code using centralized registry */
+    if (ngx_http_status_validate(error) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "invalid HTTP status code: %i, using 500", error);
+        error = NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    /* Query registry for RFC 9110 compliant reason phrase */
+    reason = ngx_http_status_reason(error);
+    if (reason != NULL) {
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "http status %i reason from registry: \"%V\"",
+                       error, reason);
+    }
 
     r->err_status = error;
 
@@ -512,7 +528,13 @@ ngx_http_special_response_handler(ngx_http_request_t *r, ngx_int_t error)
             case NGX_HTTPS_CERT_ERROR:
             case NGX_HTTPS_NO_CERT:
             case NGX_HTTP_REQUEST_HEADER_TOO_LARGE:
-                r->err_status = NGX_HTTP_BAD_REQUEST;
+                /* Validate remapped status code using registry */
+                if (ngx_http_status_validate(NGX_HTTP_BAD_REQUEST) == NGX_OK) {
+                    r->err_status = NGX_HTTP_BAD_REQUEST;
+                } else {
+                    /* Fallback to 500 if validation fails */
+                    r->err_status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
         }
 
     } else {
@@ -591,6 +613,7 @@ ngx_http_send_error_page(ngx_http_request_t *r, ngx_http_err_page_t *err_page)
     ngx_str_t                  uri, args;
     ngx_table_elt_t           *location;
     ngx_http_core_loc_conf_t  *clcf;
+    const ngx_str_t           *reason;
 
     overwrite = err_page->overwrite;
 
@@ -599,6 +622,21 @@ ngx_http_send_error_page(ngx_http_request_t *r, ngx_http_err_page_t *err_page)
     }
 
     if (overwrite >= 0) {
+        /* Validate overwrite status code using centralized registry */
+        if (ngx_http_status_validate(overwrite) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "invalid error_page overwrite status: %i", overwrite);
+            return NGX_ERROR;
+        }
+
+        /* Log RFC 9110 compliant reason phrase for debugging */
+        reason = ngx_http_status_reason(overwrite);
+        if (reason != NULL) {
+            ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                           "error_page overwrite status %i: \"%V\"",
+                           overwrite, reason);
+        }
+
         r->err_status = overwrite;
     }
 
@@ -645,7 +683,13 @@ ngx_http_send_error_page(ngx_http_request_t *r, ngx_http_err_page_t *err_page)
         && overwrite != NGX_HTTP_TEMPORARY_REDIRECT
         && overwrite != NGX_HTTP_PERMANENT_REDIRECT)
     {
-        r->err_status = NGX_HTTP_MOVED_TEMPORARILY;
+        /* Validate default redirect status code */
+        if (ngx_http_status_validate(NGX_HTTP_MOVED_TEMPORARILY) == NGX_OK) {
+            r->err_status = NGX_HTTP_MOVED_TEMPORARILY;
+        } else {
+            /* Should never happen for standard codes, but defensive */
+            r->err_status = NGX_HTTP_MOVED_PERMANENTLY;
+        }
     }
 
     location->hash = 1;
@@ -673,12 +717,30 @@ static ngx_int_t
 ngx_http_send_special_response(ngx_http_request_t *r,
     ngx_http_core_loc_conf_t *clcf, ngx_uint_t err)
 {
-    u_char       *tail;
-    size_t        len;
-    ngx_int_t     rc;
-    ngx_buf_t    *b;
-    ngx_uint_t    msie_padding;
-    ngx_chain_t   out[3];
+    u_char           *tail;
+    size_t            len;
+    ngx_int_t         rc;
+    ngx_buf_t        *b;
+    ngx_uint_t        msie_padding;
+    ngx_chain_t       out[3];
+    const ngx_str_t  *reason;
+
+    /* Validate err_status using centralized registry before response generation */
+    if (r->err_status > 0) {
+        if (ngx_http_status_validate(r->err_status) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "invalid err_status: %ui, using 500", r->err_status);
+            r->err_status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
+        /* Query registry for RFC 9110 compliant reason phrase */
+        reason = ngx_http_status_reason(r->err_status);
+        if (reason != NULL) {
+            ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                           "special response status %ui: \"%V\"",
+                           r->err_status, reason);
+        }
+    }
 
     if (clcf->server_tokens == NGX_HTTP_SERVER_TOKENS_ON) {
         len = sizeof(ngx_http_error_full_tail) - 1;
@@ -787,12 +849,13 @@ ngx_http_send_special_response(ngx_http_request_t *r,
 static ngx_int_t
 ngx_http_send_refresh(ngx_http_request_t *r)
 {
-    u_char       *p, *location;
-    size_t        len, size;
-    uintptr_t     escape;
-    ngx_int_t     rc;
-    ngx_buf_t    *b;
-    ngx_chain_t   out;
+    u_char           *p, *location;
+    size_t            len, size;
+    uintptr_t         escape;
+    ngx_int_t         rc;
+    ngx_buf_t        *b;
+    ngx_chain_t       out;
+    const ngx_str_t  *reason;
 
     len = r->headers_out.location->value.len;
     location = r->headers_out.location->value.data;
@@ -803,7 +866,20 @@ ngx_http_send_refresh(ngx_http_request_t *r)
            + escape + len
            + sizeof(ngx_http_msie_refresh_tail) - 1;
 
-    r->err_status = NGX_HTTP_OK;
+    /* Validate refresh status code (200 OK) using registry */
+    if (ngx_http_status_validate(NGX_HTTP_OK) == NGX_OK) {
+        r->err_status = NGX_HTTP_OK;
+
+        /* Log RFC 9110 compliant reason phrase */
+        reason = ngx_http_status_reason(NGX_HTTP_OK);
+        if (reason != NULL) {
+            ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                           "msie refresh using status 200: \"%V\"", reason);
+        }
+    } else {
+        /* Defensive fallback - should never happen for 200 */
+        r->err_status = NGX_HTTP_OK;
+    }
 
     r->headers_out.content_type_len = sizeof("text/html") - 1;
     ngx_str_set(&r->headers_out.content_type, "text/html");
