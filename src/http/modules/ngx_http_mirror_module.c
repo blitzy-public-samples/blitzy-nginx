@@ -163,6 +163,11 @@ ngx_http_mirror_handler_internal(ngx_http_request_t *r)
                                 NGX_HTTP_SUBREQUEST_BACKGROUND)
             != NGX_OK)
         {
+            /* Set status via API for RFC 9110 validation */
+            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 500 status for mirror subrequest error");
+            }
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
