@@ -105,6 +105,11 @@ ngx_http_random_index_handler(ngx_http_request_t *r)
 
     last = ngx_http_map_uri_to_path(r, &path, &root, len);
     if (last == NULL) {
+        /* Set status via API for RFC 9110 validation */
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for random_index path error");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -247,6 +252,11 @@ ngx_http_random_index_handler(ngx_http_request_t *r)
 
     uri.data = ngx_pnalloc(r->pool, uri.len);
     if (uri.data == NULL) {
+        /* Set status via API for RFC 9110 validation */
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for random_index memory error");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -264,6 +274,12 @@ ngx_http_random_index_error(ngx_http_request_t *r, ngx_dir_t *dir,
     if (ngx_close_dir(dir) == NGX_ERROR) {
         ngx_log_error(NGX_LOG_ALERT, r->connection->log, ngx_errno,
                       ngx_close_dir_n " \"%V\" failed", name);
+    }
+
+    /* Set status via API for RFC 9110 validation */
+    if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "failed to set 500 status for random_index error");
     }
 
     return NGX_HTTP_INTERNAL_SERVER_ERROR;
