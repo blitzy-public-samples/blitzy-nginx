@@ -401,6 +401,11 @@ ok:
     rc = ngx_http_dav_delete_path(r, &path, dir);
 
     if (rc == NGX_OK) {
+        if (ngx_http_status_set(r, NGX_HTTP_NO_CONTENT) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set WebDAV DELETE status: 204 No Content");
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
         return NGX_HTTP_NO_CONTENT;
     }
 
@@ -527,6 +532,12 @@ ngx_http_dav_mkcol_handler(ngx_http_request_t *r, ngx_http_dav_loc_conf_t *dlcf)
         != NGX_FILE_ERROR)
     {
         if (ngx_http_dav_location(r) != NGX_OK) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
+        if (ngx_http_status_set(r, NGX_HTTP_CREATED) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set WebDAV MKCOL status: 201 Created");
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -792,6 +803,11 @@ overwrite_done:
 
         if (r->method == NGX_HTTP_MOVE) {
             if (ngx_rename_file(path.data, copy.path.data) != NGX_FILE_ERROR) {
+                if (ngx_http_status_set(r, NGX_HTTP_CREATED) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set WebDAV MOVE status: 201 Created");
+                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
                 return NGX_HTTP_CREATED;
             }
         }
@@ -825,6 +841,12 @@ overwrite_done:
                 }
             }
 
+            if (ngx_http_status_set(r, NGX_HTTP_CREATED) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set WebDAV COPY/MOVE status: 201 Created");
+                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
+
             return NGX_HTTP_CREATED;
         }
 
@@ -842,6 +864,11 @@ overwrite_done:
             ext.log = r->connection->log;
 
             if (ngx_ext_rename_file(&path, &copy.path, &ext) == NGX_OK) {
+                if (ngx_http_status_set(r, NGX_HTTP_NO_CONTENT) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set WebDAV MOVE status: 204 No Content");
+                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
                 return NGX_HTTP_NO_CONTENT;
             }
 
@@ -855,6 +882,11 @@ overwrite_done:
         cf.log = r->connection->log;
 
         if (ngx_copy_file(path.data, copy.path.data, &cf) == NGX_OK) {
+            if (ngx_http_status_set(r, NGX_HTTP_NO_CONTENT) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set WebDAV COPY status: 204 No Content");
+                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
             return NGX_HTTP_NO_CONTENT;
         }
     }
