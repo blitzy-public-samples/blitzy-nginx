@@ -360,6 +360,11 @@ ngx_http_limit_req_delay(ngx_http_request_t *r)
     if (wev->delayed) {
 
         if (ngx_handle_write_event(wev, 0) != NGX_OK) {
+            /* Set status via API for RFC 9110 validation */
+            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 500 status for limit_req delay write event error");
+            }
             ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
         }
 
@@ -367,6 +372,11 @@ ngx_http_limit_req_delay(ngx_http_request_t *r)
     }
 
     if (ngx_handle_read_event(r->connection->read, 0) != NGX_OK) {
+        /* Set status via API for RFC 9110 validation */
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for limit_req delay read event error");
+        }
         ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
         return;
     }
