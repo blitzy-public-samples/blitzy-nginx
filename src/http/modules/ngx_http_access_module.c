@@ -285,6 +285,13 @@ ngx_http_access_found(ngx_http_request_t *r, ngx_uint_t deny)
                           "access forbidden by rule");
         }
 
+        /* Set status via API for RFC 9110 validation */
+        if (ngx_http_status_set(r, NGX_HTTP_FORBIDDEN) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 403 status for IP-based access control");
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
         return NGX_HTTP_FORBIDDEN;
     }
 
