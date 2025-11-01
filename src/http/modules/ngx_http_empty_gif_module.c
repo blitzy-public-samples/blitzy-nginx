@@ -124,6 +124,13 @@ ngx_http_empty_gif_handler(ngx_http_request_t *r)
     cv.value.data = ngx_empty_gif;
     r->headers_out.last_modified_time = 23349600;
 
+    /* Set status via API for RFC 9110 validation */
+    if (ngx_http_status_set(r, NGX_HTTP_OK) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "failed to set 200 OK status for empty GIF");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
     return ngx_http_send_response(r, NGX_HTTP_OK, &ngx_http_gif_type, &cv);
 }
 
