@@ -318,6 +318,14 @@ ngx_http_xslt_send(ngx_http_request_t *r, ngx_http_xslt_filter_ctx_t *ctx,
     ctx->done = 1;
 
     if (b == NULL) {
+        /* XSLT transformation error - set status via API */
+        rc = ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        if (rc != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "xslt filter: failed to set status code, "
+                          "using fallback");
+            r->headers_out.status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
         return ngx_http_filter_finalize_request(r, &ngx_http_xslt_filter_module,
                                                NGX_HTTP_INTERNAL_SERVER_ERROR);
     }
@@ -326,6 +334,14 @@ ngx_http_xslt_send(ngx_http_request_t *r, ngx_http_xslt_filter_ctx_t *ctx,
 
     if (cln == NULL) {
         ngx_free(b->pos);
+        /* Cleanup allocation failure - set status via API */
+        rc = ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        if (rc != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "xslt filter: failed to set status code, "
+                          "using fallback");
+            r->headers_out.status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
         return ngx_http_filter_finalize_request(r, &ngx_http_xslt_filter_module,
                                                NGX_HTTP_INTERNAL_SERVER_ERROR);
     }
