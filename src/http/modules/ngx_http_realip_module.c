@@ -258,6 +258,11 @@ ngx_http_realip_set_addr(ngx_http_request_t *r, ngx_addr_t *addr)
 
     cln = ngx_pool_cleanup_add(r->pool, sizeof(ngx_http_realip_ctx_t));
     if (cln == NULL) {
+        /* Set status via API for RFC 9110 validation */
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for realip cleanup error");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -268,11 +273,21 @@ ngx_http_realip_set_addr(ngx_http_request_t *r, ngx_addr_t *addr)
     len = ngx_sock_ntop(addr->sockaddr, addr->socklen, text,
                         NGX_SOCKADDR_STRLEN, 0);
     if (len == 0) {
+        /* Set status via API for RFC 9110 validation */
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for realip sockaddr error");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     p = ngx_pnalloc(c->pool, len);
     if (p == NULL) {
+        /* Set status via API for RFC 9110 validation */
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for realip memory error");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
