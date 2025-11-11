@@ -637,19 +637,25 @@ ngx_http_send_error_page(ngx_http_request_t *r, ngx_http_err_page_t *err_page)
     }
 
     if (overwrite >= 0) {
-        /* Validate overwrite status code using centralized registry */
-        if (ngx_http_status_validate(overwrite) != NGX_OK) {
-            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                          "invalid error_page overwrite status: %i", overwrite);
-            return NGX_ERROR;
-        }
+        /* Validate overwrite status code only if it's an actual status code (> 0)
+         * overwrite == 0 is a special case meaning "determined by named location"
+         * used with error_page syntax like: error_page 404 = @named_location;
+         */
+        if (overwrite > 0) {
+            /* Validate overwrite status code using centralized registry */
+            if (ngx_http_status_validate(overwrite) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "invalid error_page overwrite status: %i", overwrite);
+                return NGX_ERROR;
+            }
 
-        /* Log RFC 9110 compliant reason phrase for debugging */
-        reason = ngx_http_status_reason(overwrite);
-        if (reason != NULL) {
-            ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                           "error_page overwrite status %i: \"%V\"",
-                           overwrite, reason);
+            /* Log RFC 9110 compliant reason phrase for debugging */
+            reason = ngx_http_status_reason(overwrite);
+            if (reason != NULL) {
+                ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                               "error_page overwrite status %i: \"%V\"",
+                               overwrite, reason);
+            }
         }
 
         r->err_status = overwrite;
