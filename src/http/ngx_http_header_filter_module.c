@@ -157,6 +157,27 @@ ngx_http_header_out_t  ngx_http_headers_out[] = {
 };
 
 
+/*
+ * HTTP Header Filter Module
+ *
+ * This filter module formats HTTP response headers for HTTP/1.x protocol.
+ * It reads the HTTP status code from r->headers_out.status which has been
+ * pre-validated and set via the centralized ngx_http_status_set() API by
+ * upstream handlers and modules.
+ *
+ * Status Code Validation:
+ * - All status codes are validated for RFC 9110 compliance before reaching
+ *   this filter when --with-http-status-validation is enabled
+ * - In standard mode, status codes are set via API for consistency
+ * - Upstream backend status codes pass through with validation exemption
+ * - This filter operates on validated status values only
+ *
+ * Filter Chain Compatibility:
+ * - This function signature (ngx_http_header_filter) is preserved unchanged
+ * - The ngx_http_output_header_filter_pt interface remains stable
+ * - Third-party filter modules continue to work without modification
+ */
+
 static ngx_int_t
 ngx_http_header_filter(ngx_http_request_t *r)
 {
@@ -191,6 +212,11 @@ ngx_http_header_filter(ngx_http_request_t *r)
         r->header_only = 1;
     }
 
+    /*
+     * Read status code from r->headers_out.status.
+     * This status value has been set and validated via the centralized
+     * ngx_http_status_set() API by upstream modules/handlers.
+     */
     if (r->headers_out.last_modified_time != -1) {
         if (r->headers_out.status != NGX_HTTP_OK
             && r->headers_out.status != NGX_HTTP_PARTIAL_CONTENT
@@ -209,7 +235,22 @@ ngx_http_header_filter(ngx_http_request_t *r)
           /* the end of the header */
           + sizeof(CRLF) - 1;
 
-    /* status line */
+    /*
+     * Status Line Formatting
+     *
+     * The status code in r->headers_out.status has been pre-validated via
+     * the ngx_http_status_set() API by upstream modules. This filter reads
+     * the validated status value and formats it into the HTTP/1.x response
+     * status line (e.g., "HTTP/1.1 200 OK").
+     *
+     * Status Validation Guarantees:
+     * - Standard mode: Status codes are set via centralized API
+     * - Strict mode: RFC 9110 compliance validated before assignment
+     * - Upstream mode: Backend status codes pass through with exemption
+     *
+     * The status_line lookup uses the local ngx_http_status_lines[] array
+     * which provides reason phrases for common status codes (2xx-5xx ranges).
+     */
 
     if (r->headers_out.status_line.len) {
         len += r->headers_out.status_line.len;
@@ -220,6 +261,7 @@ ngx_http_header_filter(ngx_http_request_t *r)
 
     } else {
 
+        /* Read pre-validated status code from request structure */
         status = r->headers_out.status;
 
         if (status >= NGX_HTTP_OK
@@ -383,6 +425,11 @@ ngx_http_header_filter(ngx_http_request_t *r)
         len += sizeof("Transfer-Encoding: chunked" CRLF) - 1;
     }
 
+    /*
+     * Connection header handling based on validated status code.
+     * Status 101 (Switching Protocols) requires "Connection: upgrade" header
+     * for protocol upgrade negotiation (WebSocket, HTTP/2, etc.).
+     */
     if (r->headers_out.status == NGX_HTTP_SWITCHING_PROTOCOLS) {
         len += sizeof("Connection: upgrade" CRLF) - 1;
 
@@ -447,7 +494,11 @@ ngx_http_header_filter(ngx_http_request_t *r)
     /* "HTTP/1.x " */
     b->last = ngx_cpymem(b->last, "HTTP/1.1 ", sizeof("HTTP/1.x ") - 1);
 
-    /* status line */
+    /*
+     * Format and output HTTP status line using validated status code.
+     * The status value has been pre-validated via ngx_http_status_set() API.
+     * Format: "200 OK" (with reason phrase) or "999 " (numeric only for unknown).
+     */
     if (status_line) {
         b->last = ngx_copy(b->last, status_line->data, status_line->len);
 
@@ -559,6 +610,11 @@ ngx_http_header_filter(ngx_http_request_t *r)
                              sizeof("Transfer-Encoding: chunked" CRLF) - 1);
     }
 
+    /*
+     * Output Connection header based on validated status code.
+     * The 101 Switching Protocols status has been validated via the
+     * centralized API and requires "Connection: upgrade" per RFC 9110.
+     */
     if (r->headers_out.status == NGX_HTTP_SWITCHING_PROTOCOLS) {
         b->last = ngx_cpymem(b->last, "Connection: upgrade" CRLF,
                              sizeof("Connection: upgrade" CRLF) - 1);

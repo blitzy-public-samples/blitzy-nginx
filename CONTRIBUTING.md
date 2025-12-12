@@ -72,6 +72,43 @@ to get an idea of the prefixes used
 [name it](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)
 accordingly
 
+### HTTP Status Code Guidelines
+
+- Contributors should use the centralized status code API (`ngx_http_status_set`)
+instead of direct assignments to `r->headers_out.status`
+
+- The new API provides RFC 9110 compliance validation and consistent error
+handling across all HTTP modules
+
+- Use the following pattern when setting HTTP status codes:
+
+```c
+/* OLD approach (deprecated but still functional): */
+r->headers_out.status = NGX_HTTP_NOT_FOUND;
+
+/* NEW approach (recommended): */
+ngx_int_t rc = ngx_http_status_set(r, NGX_HTTP_NOT_FOUND);
+if (rc != NGX_OK) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "failed to set HTTP status");
+    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+}
+```
+
+- Direct status assignments are deprecated but still functional for backward
+compatibility with existing code and third-party modules
+
+- Contributors should include proper error handling when using the status code
+API, as shown in the example above; validation failures should be logged and
+handled gracefully with appropriate fallback status codes
+
+- For detailed migration guidance and API documentation, refer to
+`docs/migration/status_code_api.md`
+
+- All new code contributions must use the centralized status code API
+exclusively; pull requests that introduce new direct status assignments will
+be requested to adopt the API before acceptance
+
 ### Before Submitting
 
 - The proposed changes should work properly on a wide range of

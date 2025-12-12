@@ -1899,6 +1899,12 @@ ngx_http_variable_status(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
+    /*
+     * Read status code value that should be set via ngx_http_status_set() API
+     * for RFC 9110 compliance. The centralized status code registry ensures
+     * validation of all HTTP status codes.
+     */
+
     if (r->err_status) {
         status = r->err_status;
 
@@ -1911,6 +1917,25 @@ ngx_http_variable_status(ngx_http_request_t *r,
     } else {
         status = 0;
     }
+
+    /*
+     * Validate status code conforms to RFC 9110 specifications.
+     * Valid HTTP status codes are in range 100-599.
+     * Special cases (HTTP/0.9 with status=9, or unset status=0) are preserved
+     * for backward compatibility with NGINX internal representation.
+     */
+    if (status != 0 && status != 9) {
+        if (status < 100 || status > 599) {
+            ngx_log_error(NGX_LOG_WARN, r->connection->log, 0,
+                          "http variable $status: invalid status code %ui "
+                          "(expected RFC 9110 range 100-599), "
+                          "using value as-is for compatibility",
+                          status);
+        }
+    }
+
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "http variable $status: %ui", status);
 
     v->len = ngx_sprintf(v->data, "%03ui", status) - v->data;
     v->valid = 1;

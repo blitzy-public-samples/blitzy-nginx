@@ -285,6 +285,12 @@ ngx_http_access_found(ngx_http_request_t *r, ngx_uint_t deny)
                           "access forbidden by rule");
         }
 
+        /* Set 403 Forbidden status via centralized API */
+        if (ngx_http_status_set(r, NGX_HTTP_FORBIDDEN) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 403 Forbidden status for access denial");
+        }
+
         return NGX_HTTP_FORBIDDEN;
     }
 

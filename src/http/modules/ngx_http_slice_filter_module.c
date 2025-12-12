@@ -173,7 +173,11 @@ ngx_http_slice_header_filter(ngx_http_request_t *r)
     ctx->start = end;
     ctx->active = 1;
 
-    r->headers_out.status = NGX_HTTP_OK;
+    if (ngx_http_status_set(r, NGX_HTTP_OK) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "failed to set status 200 in slice filter");
+        return NGX_ERROR;
+    }
     r->headers_out.status_line.len = 0;
     r->headers_out.content_length_n = cr.complete_length;
     r->headers_out.content_offset = cr.start;

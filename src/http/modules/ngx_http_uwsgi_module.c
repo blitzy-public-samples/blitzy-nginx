@@ -1386,7 +1386,15 @@ ngx_http_uwsgi_process_header(ngx_http_request_t *r)
                     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                                   "upstream sent invalid status \"%V\"",
                                   status_line);
-                    return NGX_HTTP_UPSTREAM_INVALID_HEADER;
+
+                    /* NGINX-generated error: invalid status from uWSGI backend */
+                    if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+                        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                      "failed to set 502 Bad Gateway for "
+                                      "uWSGI invalid status error");
+                    }
+
+                    return NGX_HTTP_BAD_GATEWAY;
                 }
 
                 u->headers_in.status_n = status;
@@ -1431,7 +1439,14 @@ ngx_http_uwsgi_process_header(ngx_http_request_t *r)
                       r->header_end - r->header_name_start,
                       r->header_name_start, *r->header_end);
 
-        return NGX_HTTP_UPSTREAM_INVALID_HEADER;
+        /* NGINX-generated error: invalid header from uWSGI backend */
+        if (ngx_http_status_set(r, NGX_HTTP_BAD_GATEWAY) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 502 Bad Gateway for "
+                          "uWSGI invalid header error");
+        }
+
+        return NGX_HTTP_BAD_GATEWAY;
     }
 }
 

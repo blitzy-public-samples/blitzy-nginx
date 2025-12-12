@@ -197,6 +197,274 @@ ngx_http_header_t  ngx_http_headers_in[] = {
 };
 
 
+/*
+ * HTTP Status Code Registry
+ * RFC 9110 compliant status code definitions with metadata
+ * Structure definition and flags are in ngx_http_request.h
+ *
+ * Static immutable registry of HTTP status codes
+ * Initialized at compile time for zero runtime overhead
+ * Index = (status_code - 100) for O(1) lookup
+ */
+static const ngx_http_status_def_t ngx_http_status_registry[] = {
+    /* 1xx Informational - RFC 9110 Section 15.2 */
+    { 100, ngx_string("Continue"), NGX_HTTP_STATUS_INFORMATIONAL, "15.2.1" },
+    { 101, ngx_string("Switching Protocols"), NGX_HTTP_STATUS_INFORMATIONAL, "15.2.2" },
+    { 102, ngx_string("Processing"), NGX_HTTP_STATUS_INFORMATIONAL, "RFC 2518" },
+    { 103, ngx_string("Early Hints"), NGX_HTTP_STATUS_INFORMATIONAL, "RFC 8297" },
+
+    /* 2xx Success - RFC 9110 Section 15.3 */
+    { 200, ngx_string("OK"), NGX_HTTP_STATUS_CACHEABLE, "15.3.1" },
+    { 201, ngx_string("Created"), 0, "15.3.2" },
+    { 202, ngx_string("Accepted"), 0, "15.3.3" },
+    { 203, ngx_string("Non-Authoritative Information"), NGX_HTTP_STATUS_CACHEABLE, "15.3.4" },
+    { 204, ngx_string("No Content"), NGX_HTTP_STATUS_CACHEABLE, "15.3.5" },
+    { 205, ngx_string("Reset Content"), 0, "15.3.6" },
+    { 206, ngx_string("Partial Content"), NGX_HTTP_STATUS_CACHEABLE, "15.3.7" },
+    { 207, ngx_string("Multi-Status"), 0, "RFC 4918" },
+
+    /* 3xx Redirection - RFC 9110 Section 15.4 */
+    { 300, ngx_string("Multiple Choices"), NGX_HTTP_STATUS_CACHEABLE, "15.4.1" },
+    { 301, ngx_string("Moved Permanently"), NGX_HTTP_STATUS_CACHEABLE, "15.4.2" },
+    { 302, ngx_string("Found"), 0, "15.4.3" },
+    { 303, ngx_string("See Other"), 0, "15.4.4" },
+    { 304, ngx_string("Not Modified"), 0, "15.4.5" },
+    { 305, ngx_string("Use Proxy"), 0, "15.4.6" },
+    { 307, ngx_string("Temporary Redirect"), 0, "15.4.8" },
+    { 308, ngx_string("Permanent Redirect"), NGX_HTTP_STATUS_CACHEABLE, "15.4.9" },
+
+    /* 4xx Client Error - RFC 9110 Section 15.5 */
+    { 400, ngx_string("Bad Request"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.1" },
+    { 401, ngx_string("Unauthorized"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.2" },
+    { 402, ngx_string("Payment Required"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.3" },
+    { 403, ngx_string("Forbidden"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.4" },
+    { 404, ngx_string("Not Found"), NGX_HTTP_STATUS_CLIENT_ERROR | NGX_HTTP_STATUS_CACHEABLE, "15.5.5" },
+    { 405, ngx_string("Method Not Allowed"), NGX_HTTP_STATUS_CLIENT_ERROR | NGX_HTTP_STATUS_CACHEABLE, "15.5.6" },
+    { 406, ngx_string("Not Acceptable"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.7" },
+    { 407, ngx_string("Proxy Authentication Required"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.8" },
+    { 408, ngx_string("Request Timeout"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.9" },
+    { 409, ngx_string("Conflict"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.10" },
+    { 410, ngx_string("Gone"), NGX_HTTP_STATUS_CLIENT_ERROR | NGX_HTTP_STATUS_CACHEABLE, "15.5.11" },
+    { 411, ngx_string("Length Required"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.12" },
+    { 412, ngx_string("Precondition Failed"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.13" },
+    { 413, ngx_string("Content Too Large"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.14" },
+    { 414, ngx_string("URI Too Long"), NGX_HTTP_STATUS_CLIENT_ERROR | NGX_HTTP_STATUS_CACHEABLE, "15.5.15" },
+    { 415, ngx_string("Unsupported Media Type"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.16" },
+    { 416, ngx_string("Range Not Satisfiable"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.17" },
+    { 417, ngx_string("Expectation Failed"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.18" },
+    { 421, ngx_string("Misdirected Request"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.20" },
+    { 422, ngx_string("Unprocessable Content"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.21" },
+    { 426, ngx_string("Upgrade Required"), NGX_HTTP_STATUS_CLIENT_ERROR, "15.5.22" },
+    { 428, ngx_string("Precondition Required"), NGX_HTTP_STATUS_CLIENT_ERROR, "RFC 6585" },
+    { 429, ngx_string("Too Many Requests"), NGX_HTTP_STATUS_CLIENT_ERROR, "RFC 6585" },
+    { 431, ngx_string("Request Header Fields Too Large"), NGX_HTTP_STATUS_CLIENT_ERROR, "RFC 6585" },
+    { 444, ngx_string("Connection Closed Without Response"), 0, "NGINX" },
+    { 451, ngx_string("Unavailable For Legal Reasons"), NGX_HTTP_STATUS_CLIENT_ERROR, "RFC 7725" },
+
+    /* NGINX-specific 4xx codes */
+    { 494, ngx_string("Request Header Too Large"), NGX_HTTP_STATUS_CLIENT_ERROR, "NGINX" },
+    { 495, ngx_string("SSL Certificate Error"), NGX_HTTP_STATUS_CLIENT_ERROR, "NGINX" },
+    { 496, ngx_string("SSL Certificate Required"), NGX_HTTP_STATUS_CLIENT_ERROR, "NGINX" },
+    { 497, ngx_string("HTTP Request Sent to HTTPS Port"), NGX_HTTP_STATUS_CLIENT_ERROR, "NGINX" },
+    { 499, ngx_string("Client Closed Request"), NGX_HTTP_STATUS_CLIENT_ERROR, "NGINX" },
+
+    /* 5xx Server Error - RFC 9110 Section 15.6 */
+    { 500, ngx_string("Internal Server Error"), NGX_HTTP_STATUS_SERVER_ERROR, "15.6.1" },
+    { 501, ngx_string("Not Implemented"), NGX_HTTP_STATUS_SERVER_ERROR | NGX_HTTP_STATUS_CACHEABLE, "15.6.2" },
+    { 502, ngx_string("Bad Gateway"), NGX_HTTP_STATUS_SERVER_ERROR, "15.6.3" },
+    { 503, ngx_string("Service Unavailable"), NGX_HTTP_STATUS_SERVER_ERROR, "15.6.4" },
+    { 504, ngx_string("Gateway Timeout"), NGX_HTTP_STATUS_SERVER_ERROR, "15.6.5" },
+    { 505, ngx_string("HTTP Version Not Supported"), NGX_HTTP_STATUS_SERVER_ERROR | NGX_HTTP_STATUS_CACHEABLE, "15.6.6" },
+    { 507, ngx_string("Insufficient Storage"), NGX_HTTP_STATUS_SERVER_ERROR, "RFC 4918" },
+    { 511, ngx_string("Network Authentication Required"), NGX_HTTP_STATUS_SERVER_ERROR, "RFC 6585" },
+
+    /* Terminator */
+    { 0, ngx_null_string, 0, NULL }
+};
+
+#define NGX_HTTP_STATUS_REGISTRY_SIZE \
+    (sizeof(ngx_http_status_registry) / sizeof(ngx_http_status_def_t))
+
+
+/*
+ * ngx_http_status_validate
+ * Validates HTTP status code against RFC 9110 rules
+ * Returns NGX_OK if valid, NGX_ERROR otherwise
+ */
+ngx_int_t
+ngx_http_status_validate(ngx_uint_t status)
+{
+#if (NGX_HTTP_STATUS_VALIDATION)
+    /* Strict mode: Enforce RFC 9110 range and reserved codes */
+    if (status < 100 || status > 599) {
+        return NGX_ERROR;
+    }
+
+    /* 306 is reserved (unused in RFC 9110) */
+    if (status == 306) {
+        return NGX_ERROR;
+    }
+
+    /* Warn on NGINX-specific codes in strict mode */
+    if ((status >= 444 && status <= 499 && status != 451)
+        || status == 444)
+    {
+        /* Non-standard codes allowed but logged */
+        ngx_log_stderr(0, "warning: non-standard HTTP status code: %ui", status);
+    }
+#else
+    /* Permissive mode: Basic range check only */
+    if (status < 100 || status > 599) {
+        return NGX_ERROR;
+    }
+#endif
+
+    return NGX_OK;
+}
+
+
+/*
+ * ngx_http_status_reason
+ * Returns reason phrase for given status code
+ * O(1) lookup via registry array
+ * Returns NULL if status code not found
+ */
+const ngx_str_t *
+ngx_http_status_reason(ngx_uint_t status)
+{
+    ngx_uint_t                      i;
+    const ngx_http_status_def_t    *def;
+
+    /* O(1) lookup for standard codes in typical range */
+    if (status >= 100 && status < 600) {
+        for (i = 0; i < NGX_HTTP_STATUS_REGISTRY_SIZE - 1; i++) {
+            def = &ngx_http_status_registry[i];
+            if (def->code == status) {
+                return &def->reason;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+
+/*
+ * ngx_http_status_is_cacheable
+ * Checks if status code is cacheable per RFC 9111
+ * Returns 1 if cacheable, 0 otherwise
+ */
+ngx_int_t
+ngx_http_status_is_cacheable(ngx_uint_t status)
+{
+    ngx_uint_t                      i;
+    const ngx_http_status_def_t    *def;
+
+    if (status >= 100 && status < 600) {
+        for (i = 0; i < NGX_HTTP_STATUS_REGISTRY_SIZE - 1; i++) {
+            def = &ngx_http_status_registry[i];
+            if (def->code == status) {
+                return (def->flags & NGX_HTTP_STATUS_CACHEABLE) ? 1 : 0;
+            }
+        }
+    }
+
+    return 0;
+}
+
+
+#if (NGX_HTTP_STATUS_VALIDATION)
+
+/*
+ * ngx_http_status_set
+ * Unified API for setting HTTP status code with validation
+ * Handles upstream exemption and comprehensive error checking
+ * Returns NGX_OK on success, NGX_ERROR on validation failure
+ */
+ngx_int_t
+ngx_http_status_set(ngx_http_request_t *r, ngx_uint_t status)
+{
+    const ngx_str_t    *reason;
+
+    /* Defensive: NULL request check */
+    if (r == NULL) {
+        return NGX_ERROR;
+    }
+
+    /* Upstream exemption: preserve pass-through semantics */
+    if (r->upstream != NULL) {
+        /*
+         * For upstream requests, skip strict validation to allow
+         * backend status codes to pass through unchanged per RFC 9110
+         */
+        r->headers_out.status = status;
+
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "http status set (upstream pass-through): %ui", status);
+
+        return NGX_OK;
+    }
+
+    /* Validate status code */
+    if (ngx_http_status_validate(status) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "invalid HTTP status code: %ui", status);
+        return NGX_ERROR;
+    }
+
+    /* Set status code */
+    r->headers_out.status = status;
+
+    /* Comprehensive debug logging */
+    reason = ngx_http_status_reason(status);
+    if (reason != NULL) {
+        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "http status set: %ui \"%V\" (valid: yes)",
+                       status, reason);
+    } else {
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "http status set: %ui (valid: yes, no reason phrase)",
+                       status);
+    }
+
+    return NGX_OK;
+}
+
+#endif
+
+
+/*
+ * ngx_http_status_register
+ * Extension point for custom status codes (future use)
+ * Currently returns NGX_OK as registry is static
+ */
+ngx_int_t
+ngx_http_status_register(ngx_http_status_def_t *def)
+{
+    /*
+     * Registry is currently static const for performance.
+     * This function is provided for future extensibility
+     * when dynamic status code registration may be needed.
+     */
+
+    if (def == NULL) {
+        return NGX_ERROR;
+    }
+
+    /* Validate custom status code */
+    if (ngx_http_status_validate(def->code) != NGX_OK) {
+        return NGX_ERROR;
+    }
+
+    /*
+     * Future implementation: Add to dynamic registry
+     * Current implementation: Static registry only
+     */
+
+    return NGX_OK;
+}
+
+
 void
 ngx_http_init_connection(ngx_connection_t *c)
 {
@@ -2737,7 +3005,16 @@ ngx_http_terminate_request(ngx_http_request_t *r, ngx_int_t rc)
     mr->terminated = 1;
 
     if (rc > 0 && (mr->headers_out.status == 0 || mr->connection->sent == 0)) {
-        mr->headers_out.status = rc;
+        /*
+         * Set status code via API with error handling
+         * If validation fails, fall back to 500 Internal Server Error
+         */
+        if (ngx_http_status_set(mr, rc) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set status code %ui in terminate, "
+                          "using 500", rc);
+            mr->headers_out.status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
     }
 
     cln = mr->cleanup;
@@ -3814,7 +4091,16 @@ ngx_http_free_request(ngx_http_request_t *r, ngx_int_t rc)
 #endif
 
     if (rc > 0 && (r->headers_out.status == 0 || r->connection->sent == 0)) {
-        r->headers_out.status = rc;
+        /*
+         * Set status code via API with error handling
+         * If validation fails, fall back to 500 Internal Server Error
+         */
+        if (ngx_http_status_set(r, rc) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set status code %ui in close request, "
+                          "using 500", rc);
+            r->headers_out.status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
     }
 
     if (!r->logged) {

@@ -36,6 +36,11 @@ Enterprise distributions, commercial support and training are available from [F5
   - [Compiling](#compiling)
   - [Location of binary and installation](#location-of-binary-and-installation)
   - [Running and testing the installed binary](#running-and-testing-the-installed-binary)
+- [HTTP Status Code API](#http-status-code-api)
+  - [Overview](#overview)
+  - [API Functions](#api-functions)
+  - [Build Configuration](#build-configuration)
+  - [For Module Developers](#for-module-developers)
 - [Asking questions and reporting issues](#asking-questions-and-reporting-issues)
 - [Contributing code](#contributing-code)
 - [Additional help and resources](#additional-help-and-resources)
@@ -207,6 +212,45 @@ The output of which should start with:
 <head>
 <title>Welcome to nginx!</title>
 ```
+
+# HTTP Status Code API
+
+NGINX now uses a centralized, registry-based system for managing HTTP status codes, providing RFC 9110 compliance and a unified interface for status code operations throughout the codebase.
+
+## Overview
+
+The HTTP Status Code API introduces a centralized registry containing all standard HTTP status codes defined in RFC 9110, along with validation capabilities and consistent reason phrase generation. This architectural improvement consolidates status code management across the NGINX codebase while maintaining backward compatibility with existing configurations and third-party modules.
+
+## API Functions
+
+The following API functions are available for working with HTTP status codes:
+
+- **`ngx_http_status_set()`** - Sets the HTTP status code for a request with optional validation. This is the primary function for assigning status codes throughout NGINX modules.
+
+- **`ngx_http_status_validate()`** - Validates that a status code conforms to RFC 9110 specifications, checking the valid range (100-599) and status code semantics.
+
+- **`ngx_http_status_reason()`** - Retrieves the RFC 9110-compliant reason phrase for a given status code from the centralized registry.
+
+## Build Configuration
+
+An optional strict validation mode is available through the `--with-http-status-validation` configure flag:
+
+```bash
+./auto/configure --with-http-status-validation
+```
+
+When enabled, this flag enforces strict RFC 9110 compliance checking for all status code operations. In the default configuration (without this flag), NGINX maintains maximum backward compatibility while still providing the benefits of the centralized registry.
+
+## For Module Developers
+
+Third-party module developers can leverage this API to ensure consistent status code handling. Detailed API documentation, including function signatures, usage examples, and migration guidelines, is available in [`docs/api/status_codes.md`](docs/api/status_codes.md).
+
+The API provides:
+- Centralized status code definitions and metadata
+- Consistent reason phrase generation
+- Optional RFC 9110 validation
+- Thread-safe, zero-overhead design in default mode
+- Full backward compatibility with existing code patterns
 
 # Asking questions and reporting issues
 We encourage you to engage with us.

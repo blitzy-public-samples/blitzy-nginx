@@ -486,11 +486,19 @@ ngx_http_scgi_handler(ngx_http_request_t *r)
 #endif
 
     if (ngx_http_upstream_create(r) != NGX_OK) {
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "scgi: failed to set status 500 for upstream create failure");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     status = ngx_pcalloc(r->pool, sizeof(ngx_http_status_t));
     if (status == NULL) {
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "scgi: failed to set status 500 for memory allocation failure");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -500,6 +508,10 @@ ngx_http_scgi_handler(ngx_http_request_t *r)
 
     if (scf->scgi_lengths) {
         if (ngx_http_scgi_eval(r, scf) != NGX_OK) {
+            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "scgi: failed to set status 500 for eval failure");
+            }
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
     }
@@ -529,6 +541,10 @@ ngx_http_scgi_handler(ngx_http_request_t *r)
 
     u->pipe = ngx_pcalloc(r->pool, sizeof(ngx_event_pipe_t));
     if (u->pipe == NULL) {
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "scgi: failed to set status 500 for pipe allocation failure");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -1004,6 +1020,16 @@ ngx_http_scgi_reinit_request(ngx_http_request_t *r)
     return NGX_OK;
 }
 
+
+/*
+ * SCGI upstream status pass-through: Backend-provided status codes from
+ * SCGI responses are stored in u->headers_in.status_n and pass through
+ * unchanged to the client. The ngx_http_upstream.c module handles copying
+ * from u->headers_in.status_n to r->headers_out.status with appropriate
+ * exemption logic (r->upstream check). Only NGINX-generated protocol errors
+ * (connection failures, memory allocation failures) use ngx_http_status_set()
+ * API in the handler function above.
+ */
 
 static ngx_int_t
 ngx_http_scgi_process_status_line(ngx_http_request_t *r)

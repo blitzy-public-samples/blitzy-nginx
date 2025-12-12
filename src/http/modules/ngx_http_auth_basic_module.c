@@ -318,8 +318,9 @@ ngx_http_auth_basic_crypt_handler(ngx_http_request_t *r, ngx_str_t *passwd,
 static ngx_int_t
 ngx_http_auth_basic_set_realm(ngx_http_request_t *r, ngx_str_t *realm)
 {
-    size_t   len;
-    u_char  *basic, *p;
+    ngx_int_t  rc;
+    size_t     len;
+    u_char    *basic, *p;
 
     r->headers_out.www_authenticate = ngx_list_push(&r->headers_out.headers);
     if (r->headers_out.www_authenticate == NULL) {
@@ -344,6 +345,14 @@ ngx_http_auth_basic_set_realm(ngx_http_request_t *r, ngx_str_t *realm)
     ngx_str_set(&r->headers_out.www_authenticate->key, "WWW-Authenticate");
     r->headers_out.www_authenticate->value.data = basic;
     r->headers_out.www_authenticate->value.len = len;
+
+    /* Set 401 Unauthorized status via centralized API */
+    rc = ngx_http_status_set(r, NGX_HTTP_UNAUTHORIZED);
+    if (rc != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "failed to set 401 Unauthorized status for auth failure");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
 
     return NGX_HTTP_UNAUTHORIZED;
 }

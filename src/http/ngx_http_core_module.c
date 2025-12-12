@@ -1778,7 +1778,14 @@ ngx_http_send_response(ngx_http_request_t *r, ngx_uint_t status,
         return rc;
     }
 
-    r->headers_out.status = status;
+    /* Set status via centralized API with RFC 9110 validation */
+    rc = ngx_http_status_set(r, status);
+    if (rc != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "invalid HTTP status code: %ui, falling back to 500",
+                      status);
+        r->headers_out.status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
 
     if (ngx_http_complex_value(r, cv, &val) != NGX_OK) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
@@ -1845,6 +1852,8 @@ ngx_http_send_response(ngx_http_request_t *r, ngx_uint_t status,
 ngx_int_t
 ngx_http_send_header(ngx_http_request_t *r)
 {
+    ngx_int_t  rc;
+
     if (r->post_action) {
         return NGX_OK;
     }
@@ -1856,7 +1865,14 @@ ngx_http_send_header(ngx_http_request_t *r)
     }
 
     if (r->err_status) {
-        r->headers_out.status = r->err_status;
+        /* Set error status via centralized API with RFC 9110 validation */
+        rc = ngx_http_status_set(r, r->err_status);
+        if (rc != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "invalid HTTP error status code: %ui, "
+                          "falling back to 500", r->err_status);
+            r->headers_out.status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
         r->headers_out.status_line.len = 0;
     }
 

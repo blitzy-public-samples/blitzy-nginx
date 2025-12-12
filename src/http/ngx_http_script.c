@@ -1119,7 +1119,19 @@ ngx_http_script_regex_start_code(ngx_http_script_engine_t *e)
     }
 
     if (code->status) {
-        e->status = code->status;
+        /*
+         * Validate status code for rewrite directive with status.
+         * RFC 9110 requires status codes to be in the range 100-599.
+         */
+        if (code->status < 100 || code->status > 599) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "invalid HTTP status code %ui in rewrite directive, "
+                          "must be in range 100-599, using 500 Internal Server Error",
+                          code->status);
+            e->status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+        } else {
+            e->status = code->status;
+        }
 
         if (!code->redirect) {
             e->ip = ngx_http_script_exit;
@@ -1489,17 +1501,42 @@ void
 ngx_http_script_return_code(ngx_http_script_engine_t *e)
 {
     ngx_http_script_return_code_t  *code;
+    ngx_uint_t                      validated_status;
 
     code = (ngx_http_script_return_code_t *) e->ip;
 
-    if (code->status < NGX_HTTP_BAD_REQUEST
+    /*
+     * Validate status code for RFC 9110 compliance.
+     * Valid HTTP status codes must be in the range 100-599.
+     * Invalid codes are replaced with 500 Internal Server Error.
+     */
+    if (code->status < 100 || code->status > 599) {
+        ngx_log_error(NGX_LOG_ERR, e->request->connection->log, 0,
+                      "invalid HTTP status code %ui in return directive, "
+                      "must be in range 100-599, using 500 Internal Server Error",
+                      code->status);
+        validated_status = NGX_HTTP_INTERNAL_SERVER_ERROR;
+    } else {
+        validated_status = code->status;
+    }
+
+    if (validated_status < NGX_HTTP_BAD_REQUEST
         || code->text.value.len
         || code->text.lengths)
     {
-        e->status = ngx_http_send_response(e->request, code->status, NULL,
+        /*
+         * Status code with response body: delegate to ngx_http_send_response()
+         * which handles the actual HTTP status assignment through the
+         * centralized status code API.
+         */
+        e->status = ngx_http_send_response(e->request, validated_status, NULL,
                                            &code->text);
     } else {
-        e->status = code->status;
+        /*
+         * Simple status code without body: store validated status for
+         * processing by the rewrite module handler.
+         */
+        e->status = validated_status;
     }
 
     e->ip = ngx_http_script_exit;

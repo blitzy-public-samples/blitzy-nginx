@@ -962,12 +962,27 @@ ngx_http_proxy_handler(ngx_http_request_t *r)
     ngx_http_proxy_main_conf_t  *pmcf;
 #endif
 
+    /*
+     * Status code handling in proxy module:
+     * - NGINX-generated errors (setup/init failures): use ngx_http_status_set()
+     * - Backend HTTP responses: pass-through via ngx_http_upstream.c (r->upstream)
+     * - Connection/timeout errors: handled by upstream infrastructure (502/504)
+     */
+
     if (ngx_http_upstream_create(r) != NGX_OK) {
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for upstream creation failure");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_proxy_ctx_t));
     if (ctx == NULL) {
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for context allocation failure");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -986,6 +1001,10 @@ ngx_http_proxy_handler(ngx_http_request_t *r)
 
     } else {
         if (ngx_http_proxy_eval(r, ctx, plcf) != NGX_OK) {
+            if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "failed to set 500 status for proxy eval failure");
+            }
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
     }
@@ -1020,6 +1039,10 @@ ngx_http_proxy_handler(ngx_http_request_t *r)
 
     u->pipe = ngx_pcalloc(r->pool, sizeof(ngx_event_pipe_t));
     if (u->pipe == NULL) {
+        if (ngx_http_status_set(r, NGX_HTTP_INTERNAL_SERVER_ERROR) != NGX_OK) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "failed to set 500 status for pipe allocation failure");
+        }
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 

@@ -194,6 +194,13 @@ ngx_http_try_files_handler(ngx_http_request_t *r)
         if (tf->lengths == NULL && tf->name.len == 0) {
 
             if (tf->code) {
+                /* Set status via API for RFC 9110 validation */
+                if (ngx_http_status_set(r, tf->code) != NGX_OK) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                                  "failed to set try_files fallback status: %ui",
+                                  tf->code);
+                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
                 return tf->code;
             }
 

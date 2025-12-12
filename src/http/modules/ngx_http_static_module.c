@@ -226,7 +226,13 @@ ngx_http_static_handler(ngx_http_request_t *r)
 
     log->action = "sending response to client";
 
-    r->headers_out.status = NGX_HTTP_OK;
+    /* Set HTTP 200 OK status via centralized API with RFC 9110 validation */
+    if (ngx_http_status_set(r, NGX_HTTP_OK) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "failed to set 200 OK status for static file response");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
     r->headers_out.content_length_n = of.size;
     r->headers_out.last_modified_time = of.mtime;
 

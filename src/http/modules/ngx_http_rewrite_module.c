@@ -133,6 +133,20 @@ ngx_module_t  ngx_http_rewrite_module = {
 };
 
 
+/*
+ * Rewrite module request handler.
+ *
+ * Executes rewrite scripts configured during the configuration phase.
+ * For return directives, the script engine (ngx_http_script_return_code)
+ * validates HTTP status codes against RFC 9110 requirements (100-599 range)
+ * and applies the centralized status code API before setting the response
+ * status. Invalid codes are logged and replaced with 500 Internal Server Error.
+ *
+ * The handler returns either:
+ * - NGX_DECLINED: No rewrite rules matched or executed
+ * - HTTP status code: From return directive (validated by script engine)
+ * - NGX_ERROR: Script execution error
+ */
 static ngx_int_t
 ngx_http_rewrite_handler(ngx_http_request_t *r)
 {
@@ -175,6 +189,11 @@ ngx_http_rewrite_handler(ngx_http_request_t *r)
     e->log = rlcf->log;
     e->status = NGX_DECLINED;
 
+    /*
+     * Execute rewrite script codes. For return directives, the script
+     * engine validates status codes and applies them via the centralized
+     * HTTP status code API, ensuring RFC 9110 compliance.
+     */
     while (*(uintptr_t *) e->ip) {
         code = *(ngx_http_script_code_pt *) e->ip;
         code(e);
@@ -351,11 +370,16 @@ ngx_http_rewrite(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     last = 0;
 
+    /*
+     * Rewrite directive status codes (302, 301) are RFC 9110 compliant
+     * redirect codes. Runtime validation through status code API ensures
+     * these are properly handled when the rewrite executes.
+     */
     if (ngx_strncmp(value[2].data, "http://", sizeof("http://") - 1) == 0
         || ngx_strncmp(value[2].data, "https://", sizeof("https://") - 1) == 0
         || ngx_strncmp(value[2].data, "$scheme", sizeof("$scheme") - 1) == 0)
     {
-        regex->status = NGX_HTTP_MOVED_TEMPORARILY;
+        regex->status = NGX_HTTP_MOVED_TEMPORARILY;  /* 302 */
         regex->redirect = 1;
         last = 1;
     }
@@ -369,12 +393,12 @@ ngx_http_rewrite(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             last = 1;
 
         } else if (ngx_strcmp(value[3].data, "redirect") == 0) {
-            regex->status = NGX_HTTP_MOVED_TEMPORARILY;
+            regex->status = NGX_HTTP_MOVED_TEMPORARILY;  /* 302 */
             regex->redirect = 1;
             last = 1;
 
         } else if (ngx_strcmp(value[3].data, "permanent") == 0) {
-            regex->status = NGX_HTTP_MOVED_PERMANENTLY;
+            regex->status = NGX_HTTP_MOVED_PERMANENTLY;  /* 301 */
             regex->redirect = 1;
             last = 1;
 
@@ -458,6 +482,11 @@ ngx_http_rewrite_return(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     ngx_memzero(ret, sizeof(ngx_http_script_return_code_t));
 
+    /*
+     * The return directive status code is validated at runtime by
+     * ngx_http_script_return_code() to ensure RFC 9110 compliance.
+     * Configuration-time validation performs basic range checking.
+     */
     ret->code = ngx_http_script_return_code;
 
     p = value[1].data;
@@ -471,6 +500,7 @@ ngx_http_rewrite_return(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
                 || ngx_strncmp(p, "https://", sizeof("https://") - 1) == 0
                 || ngx_strncmp(p, "$scheme", sizeof("$scheme") - 1) == 0))
         {
+            /* URL redirect defaults to 302 Moved Temporarily */
             ret->status = NGX_HTTP_MOVED_TEMPORARILY;
             v = &value[1];
 
@@ -482,10 +512,32 @@ ngx_http_rewrite_return(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     } else {
 
+        /*
+         * RFC 9110 defines valid HTTP status codes in the range 100-599.
+         * Reject codes above 999 during configuration parsing. Runtime
+         * validation in ngx_http_script_return_code() enforces the
+         * complete RFC 9110 range (100-599) with fallback to 500.
+         */
         if (ret->status > 999) {
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                                "invalid return code \"%V\"", &value[1]);
             return NGX_CONF_ERROR;
+        }
+
+        /*
+         * Additional configuration-time validation: warn about codes
+         * outside RFC 9110 standard range (100-599) but allow NGINX
+         * custom codes (444, 494-499) for backward compatibility.
+         * Full validation occurs at runtime via status code API.
+         */
+        if ((ret->status < 100 || ret->status > 599)
+            && ret->status != 444
+            && !(ret->status >= 494 && ret->status <= 499))
+        {
+            ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
+                               "status code %ui outside RFC 9110 range "
+                               "(100-599), will be validated at runtime",
+                               ret->status);
         }
 
         if (cf->args->nelts == 2) {

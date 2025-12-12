@@ -226,6 +226,14 @@ ngx_http_gzip_header_filter(ngx_http_request_t *r)
 
     conf = ngx_http_get_module_loc_conf(r, ngx_http_gzip_filter_module);
 
+    /*
+     * Read-only status access: This filter checks the status code to determine
+     * whether gzip compression should be applied. The status value has been
+     * set and validated by the centralized status code API (ngx_http_status_set)
+     * in upstream filters/handlers. Direct field read is appropriate here as
+     * the API is for setting status, not reading it. Gzip compression is only
+     * applied to 200 OK, 403 Forbidden, and 404 Not Found responses.
+     */
     if (!conf->enable
         || (r->headers_out.status != NGX_HTTP_OK
             && r->headers_out.status != NGX_HTTP_FORBIDDEN
