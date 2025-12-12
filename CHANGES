@@ -1,0 +1,30 @@
+
+                                                         Changes
+
+
+Changes with nginx 1.29.3                                        12 Dec 2025
+
+    *) Feature: centralized HTTP status code registry and validation API.
+
+       This release introduces a unified HTTP status code management system
+       with RFC 9110 compliance validation. The new architecture includes:
+
+       - Centralized status code registry with reason phrases and metadata
+       - ngx_http_status_set() API for validated status code assignment
+       - ngx_http_status_validate() for RFC 9110 range validation
+       - ngx_http_status_reason() for standard reason phrase lookup
+       - ngx_http_status_is_cacheable() for RFC 9111 cache decisions
+       - Optional strict validation via --with-http_status_validation flag
+
+       The refactoring maintains full backward compatibility with existing
+       nginx.conf configurations and third-party modules. All status code
+       assignments now route through the unified API while preserving
+       upstream pass-through semantics for proxied responses.
+
+       Status flags: NGX_HTTP_STATUS_CACHEABLE, NGX_HTTP_STATUS_CLIENT_ERROR,
+       NGX_HTTP_STATUS_SERVER_ERROR, NGX_HTTP_STATUS_INFORMATIONAL.
+
+       Build option: --with-http_status_validation enables strict RFC 9110
+       compliance checking including reserved code detection (306) and
+       warnings for non-standard NGINX-specific codes (444, 494-499).
+

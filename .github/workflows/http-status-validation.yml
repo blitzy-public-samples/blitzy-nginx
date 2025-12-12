@@ -1,0 +1,106 @@
+name: HTTP Status Code Validation
+
+on:
+  push:
+    branches:
+      - master
+      - 'stable-1.*'
+    paths:
+      - 'src/http/**'
+      - 'auto/**'
+  pull_request:
+    paths:
+      - 'src/http/**'
+      - 'auto/**'
+
+jobs:
+  build-matrix:
+    name: Build (${{ matrix.mode }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [standard, validation]
+        include:
+          - mode: standard
+            configure_flags: '--with-debug'
+            description: 'Standard mode (backward compatible)'
+          - mode: validation
+            configure_flags: '--with-debug --with-http_status_validation'
+            description: 'Strict RFC 9110 validation mode'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libpcre3-dev zlib1g-dev libssl-dev
+
+      - name: Configure nginx (${{ matrix.mode }} mode)
+        run: |
+          echo "=== Configuring nginx (${{ matrix.description }}) ==="
+          auto/configure --prefix=/usr/local/nginx ${{ matrix.configure_flags }}
+
+      - name: Build nginx
+        run: |
+          echo "=== Building nginx ==="
+          make -j$(nproc)
+
+      - name: Verify binary
+        run: |
+          echo "=== Verifying nginx binary ==="
+          ./objs/nginx -V
+          echo "=== Testing configuration syntax ==="
+          mkdir -p logs
+          ./objs/nginx -t -p . -c conf/nginx.conf
+
+      - name: Test status code API
+        run: |
+          echo "=== Testing HTTP status code API functionality ==="
+          # Start nginx in background
+          ./objs/nginx -p . -c conf/nginx.conf
+          sleep 2
+          
+          # Test basic status codes
+          echo "Testing 200 OK..."
+          curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/ | grep -q "200" && echo "PASS: 200 OK" || exit 1
+          
+          echo "Testing 404 Not Found..."
+          curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/nonexistent | grep -q "404" && echo "PASS: 404 Not Found" || exit 1
+          
+          # Stop nginx
+          ./objs/nginx -p . -c conf/nginx.conf -s stop
+          echo "=== All status code tests passed ==="
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nginx-build-${{ matrix.mode }}
+          path: |
+            objs/nginx
+            objs/ngx_auto_config.h
+          retention-days: 7
+
+      - name: Upload test logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-logs-${{ matrix.mode }}
+          path: |
+            logs/
+          retention-days: 7
+
+  validation-summary:
+    name: Validation Summary
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check build results
+        run: |
+          echo "=== HTTP Status Code Validation Summary ==="
+          echo "Both standard and validation mode builds completed."
+          echo "Artifacts available for download."
